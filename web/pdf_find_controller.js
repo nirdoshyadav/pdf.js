@@ -114,6 +114,37 @@ var PDFFindController = (function PDFFindControllerClosure() {
       var query = this.normalize(this.state.query);
       var caseSensitive = this.state.caseSensitive;
       var queryLen = query.length;
+      
+      if (queryLen === 0) {
+          return; // Do nothing: the matches should be wiped out already.
+      }
+  
+      if (!caseSensitive) {
+        pageContent = pageContent.toLowerCase();
+        query = query.toLowerCase();
+      }
+  
+      var matches = [];
+      var matchIdx = -queryLen;
+      while (true) {
+        matchIdx = pageContent.indexOf(query, matchIdx + queryLen);
+        if (matchIdx === -1) {
+          break;
+        }
+        matches.push(matchIdx);
+      }
+      this.pageMatches[pageIndex] = matches;
+      this.updatePage(pageIndex);
+      if (this.resumePageIdx === pageIndex) {
+        this.resumePageIdx = null;
+        this.nextPageMatch();
+      }
+    },
+    calcSearchMatch: function PDFFindController_calcSearchMatch(pageIndex) {
+      var pageContent = this.normalize(this.pageContents[pageIndex]);
+      var query = this.normalize(this.state.query);
+      var caseSensitive = this.state.caseSensitive;
+      var queryLen = query.length;
 
       if (queryLen === 0) {
         return; // Do nothing: the matches should be wiped out already.
@@ -125,15 +156,47 @@ var PDFFindController = (function PDFFindControllerClosure() {
       }
 
       var matches = [];
+      var queryLens= [];
       var matchIdx = -queryLen;
-      while (true) {
+      /*while (true) {
         matchIdx = pageContent.indexOf(query, matchIdx + queryLen);
         if (matchIdx === -1) {
           break;
         }
         matches.push(matchIdx);
+      }*/
+      //Nirdosh: regular expression to match full sentence
+      var regex=new RegExp('[^.]* '+query+' [^.]*\.','gi');
+      var match;
+      while ((match = regex.exec(pageContent)) !== null) {
+        if (match.index === regex.lastIndex) {
+             ++regex.lastIndex;
+        }
+        //now check the match to apply some more rules
+        //check if it contains any consecutive spaces, 
+        //if yes break it in between
+        //split functionality
+        //@TODO: need to make it generic
+        if(match[0].indexOf('  ')>-1){ 
+         var splitStr=match[0].split('  ');
+         var strLength=0;
+         for(var i=0;i<splitStr.length;i++){
+           var currStr=splitStr[i];
+           if(currStr.indexOf(query)>-1){
+             matches.push(match.index+strLength);
+             queryLens.push(currStr.length);
+           }
+           strLength=strLength+currStr.length+2;
+         }
+        
+        }else{
+          matches.push(match.index);
+          queryLens.push(match[0].length);
+       }
       }
+      
       this.pageMatches[pageIndex] = matches;
+      this.queryLens[pageIndex] = queryLens;
       this.updatePage(pageIndex);
       if (this.resumePageIdx === pageIndex) {
         this.resumePageIdx = null;
@@ -212,9 +275,22 @@ var PDFFindController = (function PDFFindControllerClosure() {
       if (page.textLayer) {
         page.textLayer.updateMatches();
       }
+      //scroll match into view
+      if (PDFJS.multiple !== undefined) {
+          try {
+              var d = document.getElementsByClassName('highlight');
+              if (d.length > 0) {
+                  var vc = document.getElementById('viewerContainer');
+                  if (vc.scrollTop < 40) {
+                      scrollIntoView(d[0].parentNode);
+                  }
+              }
+          } catch (e) {
+          }
+      }
     },
 
-    nextMatch: function PDFFindController_nextMatch() {
+    nextMatch: function PDFFindController_nextMatch(page) {
       var previous = this.state.findPrevious;
       var currentPageIndex = this.pdfViewer.currentPageNumber - 1;
       var numPages = this.pdfViewer.pagesCount;
@@ -230,9 +306,15 @@ var PDFFindController = (function PDFFindControllerClosure() {
         this.hadMatch = false;
         this.resumePageIdx = null;
         this.pageMatches = [];
+        this.queryLens = [];
         var self = this;
 
-        for (var i = 0; i < numPages; i++) {
+        var qwy = '';
+        if(page === undefined){
+            page=currentPageIndex;
+        }
+        var i=page;
+        //for (var i = 0; i < numPages; i++) {
           // Wipe out any previous highlighted matches.
           this.updatePage(i);
 
@@ -241,10 +323,22 @@ var PDFFindController = (function PDFFindControllerClosure() {
             this.pendingFindMatches[i] = true;
             this.extractTextPromises[i].then(function(pageIdx) {
               delete self.pendingFindMatches[pageIdx];
-              self.calcFindMatch(pageIdx);
+              if (PDFJS.multiple === undefined) {
+                  self.calcFindMatch(pageIdx);
+              } else { 
+                if(page === pageIdx) {
+                  //for(var k=0;k < PDFJS.multiple.length;k++){
+                      for (var j = 0; j < PDFJS.multiple.terms.length; j++) {
+                        qwy = PDFJS.multiple.terms[j].replace(/\=/ig, ' ');
+                        self.state.query = qwy;
+                        self.calcSearchMatch(pageIdx);
+                      }
+                   //}
+                }
+              }
             });
           }
-        }
+        //}
       }
 
       // If there's no query there's no point in searching.

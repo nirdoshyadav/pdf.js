@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 /* globals RenderingStates, PDFJS, CustomStyle, CSS_UNITS, getOutputScale,
-           TextLayerBuilder, AnnotationsLayerBuilder, Promise */
+           TextLayerBuilder, AnnotationsLayerBuilder, Promise, PDFURLFinder */
 
 'use strict';
 
@@ -463,6 +463,7 @@ var PDFPageView = (function PDFPageViewClosure() {
               function textContentResolved(textContent) {
                 textLayer.setTextContent(textContent);
                 textLayer.render(TEXT_LAYER_RENDER_DELAY);
+                var match = new PDFURLFinder(self);
               }
             );
           }
