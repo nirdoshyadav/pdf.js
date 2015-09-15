@@ -29,15 +29,8 @@ var PDFURLFinder = (function PDFFindBarClosure() {
 
             if (params[paramname] !== undefined) {
                 var parambase = JSON.parse(params[paramname]);
-                var pageIndx=parseInt(page.textLayer.pageIdx);
-                for(var i=0;i< parambase.length;i++){
-                  if(parambase[i].page === pageIndx+1){
-                      PDFJS.multiple = parambase[i];
-                  }
-                  if(parambase[i].page > pageIndx+1){
-                    break;
-                  }
-                }
+                //assign the full data for the topic to PDFJS.multiple
+                PDFJS.multiple = parambase;
             }
 
             var fc = page.textLayer.findController;
