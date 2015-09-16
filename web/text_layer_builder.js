@@ -276,6 +276,8 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
       var ret = [];
 
       for (var m = 0, len = matches.length; m < len; m++) {
+        i=0;
+        iIndex=0;
         // Calculate the start position.
         var matchIdx = matches[m];
 
@@ -436,9 +438,9 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
         var divIdx = begin.divIdx;
         var div = textDivs[divIdx];
         var endIndex=begin.offset;
-        var spans = div.getElementsByTagName("span");
+        var spans = div.getElementsByTagName('span');
         var content=bidiTexts[divIdx].str;
-        if(spans!= 'undefined' && spans.length>0){
+        if((typeof spans!== 'undefined') && spans.length>0){
           for(var i=0;i<spans.length;i++){
             var container = spans[i].parentNode;
             container.removeChild(spans[i]);
@@ -458,8 +460,8 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
         var content = bidiTexts[divIdx].str.substring(fromOffset, toOffset);
         var node = document.createTextNode(content);
         if (className) {
-          var spans=div.getElementsByTagName("span");
-          if(spans!= 'undefined' && spans.length>0){
+          var spans=div.getElementsByTagName('span');
+          if((typeof spans!== 'undefined') && spans.length>0){
             for(var i=0;i<spans.length;i++){
               var container = spans[i].parentNode;
               container.removeChild(spans[i]);
@@ -495,7 +497,7 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
         var isSelected = (isSelectedPage && i === selectedMatchIdx);
         var highlightSuffix = (isSelected ? 'selected' : '');
 
-        if (PDFJS.multiple === undefined) {
+        if (typeof PDFJS.multiple === 'undefined') {
             if (isSelected && !this.isViewerInPresentationMode) {
                 scrollIntoView(textDivs[begin.divIdx],
                                {
@@ -552,14 +554,15 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
       var clearedUntilDivIdx = -1;
 
       // Clear all current matches.
+      //no need to clear as we can have multiple terms on the same page
       for (var i = 0, len = matches.length; i < len; i++) {
         var match = matches[i];
-        var begin = Math.max(clearedUntilDivIdx, match.begin.divIdx);
-        for (var n = begin, end = match.end.divIdx; n <= end; n++) {
-          var div = textDivs[n];
-          div.textContent = bidiTexts[n].str;
-          div.className = '';
-        }
+        // var begin = Math.max(clearedUntilDivIdx, match.begin.divIdx);
+        // for (var n = begin, end = match.end.divIdx; n <= end; n++) {
+        //   var div = textDivs[n];
+        //   div.textContent = bidiTexts[n].str;
+        //   div.className = '';
+        // }
         clearedUntilDivIdx = match.end.divIdx + 1;
       }
 
@@ -569,7 +572,7 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
 
       // Convert the matches on the page controller into the match format
       // used for the textLayer.
-     if(PDFJS.multiple !== undefined){
+     if(typeof PDFJS.multiple !== 'undefined'){
           this.matches = this.convertSearchMatches(
               this.findController === null ?
               [] : (this.findController.pageMatches[this.pageIdx] || []),

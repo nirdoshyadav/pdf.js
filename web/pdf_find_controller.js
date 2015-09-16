@@ -161,10 +161,10 @@ var PDFFindController = (function PDFFindControllerClosure() {
         }
 
         //Nirdosh: regular expression to match full sentence
-        var regex=new RegExp("[^.]* "+query+"[^.]*\.","gi");
+        var regex=new RegExp('[^.]* '+query+'[^.]*\.','gi');
         var match;
         // console.log(query);
-        while ((match = regex.exec(pageContent)) != null) {
+        while ((match = regex.exec(pageContent)) !== null) {
           if (match.index === regex.lastIndex) {
             ++regex.lastIndex;
             }
@@ -253,7 +253,7 @@ var PDFFindController = (function PDFFindControllerClosure() {
         page.textLayer.updateMatches();
       }
       //scroll match into view
-      if (PDFJS.multiple == undefined) {
+      if (typeof PDFJS.multiple === 'undefined') {
           try {
               var d = document.getElementsByClassName('highlight');
               if (d.length > 0) {
@@ -300,12 +300,12 @@ var PDFFindController = (function PDFFindControllerClosure() {
             this.pendingFindMatches[i] = true;
             this.extractTextPromises[i].then(function(pageIdx) {
               delete self.pendingFindMatches[pageIdx];
-              if (PDFJS.multiple === undefined) {
+              if (typeof PDFJS.multiple === 'undefined') {
                   self.calcFindMatch(pageIdx);
               } else { 
                     for(var j=0;j<PDFJS.multiple.length;j++){
                      //get the data for the current page
-                     if(PDFJS.multiple[j].page == pageIdx+1){
+                     if(PDFJS.multiple[j].page === pageIdx+1){
                       self.state.query = PDFJS.multiple[j];
                       self.calcSearchMatch(pageIdx);
                       }
