@@ -301,7 +301,9 @@ var PDFFindController = (function PDFFindControllerClosure() {
             this.extractTextPromises[i].then(function(pageIdx) {
               delete self.pendingFindMatches[pageIdx];
               if (typeof PDFJS.multiple === 'undefined') {
-                  self.calcFindMatch(pageIdx);
+                for(var i=0;i<numPages;i++){
+                  self.calcFindMatch(i);
+                }
               } else { 
                     for(var j=0;j<PDFJS.multiple.length;j++){
                      //get the data for the current page
