@@ -15,7 +15,7 @@
 
 @import url(pdf_viewer.css);
 
-#meta-next, #meta-prev {
+#meta-next, #meta-prev, #meta-key {
     font-family: 'Varela', Arial, Sans-Serif!important;
     font-size: 12px;
     color: #DDD;
@@ -23,11 +23,15 @@
     font-weight: 700;
 }
 
-#meta-next img, #meta-prev img{
+#meta-next img, #meta-prev img, #meta-key img{
   margin-left: 5px;
   margin-right: 5px;
   position: relative;
   top: 5px;
+}
+
+#meta-key.disabled {
+  opacity: .3;
 }
 
 * {

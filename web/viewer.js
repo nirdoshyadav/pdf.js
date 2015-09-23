@@ -37,6 +37,7 @@ var SCALE_SELECT_PADDING = 22;
 var PAGE_NUMBER_LOADING_INDICATOR = 'visiblePageIsLoading';
 var DISABLE_AUTO_FETCH_LOADING_BAR_TIMEOUT = 5000;
 var METAINDEX = 0;
+var METAKEY = false;
 
 PDFJS.imageResourcesPath = './images/';
 //#if (FIREFOX || MOZCENTRAL || GENERIC || CHROME)
@@ -1344,7 +1345,7 @@ function webViewerInitialized() {
   }
 
 //#if !(FIREFOX || MOZCENTRAL)
-  mozL10n.setLanguage(locale);
+  mozL10n.setLanguage('en-US');
 //#endif
 //#if (FIREFOX || MOZCENTRAL)
   if (!PDFViewerApplication.supportsDocumentFonts) {
@@ -1438,11 +1439,32 @@ function webViewerInitialized() {
       });
   }
   
+  if(document.getElementById('meta-key')){
+    document.getElementById('meta-key').addEventListener('click',
+      function() {
+        if(document.getElementById('meta-key').className === ''){
+          document.getElementById('meta-key').className = 'disabled';
+          METAKEY = false;
+        } else {
+          document.getElementById('meta-key').className = '';
+          METAKEY = true;
+        }
+      });
+  }
+  
   if(document.getElementById('meta-prev')){
     document.getElementById('meta-prev').addEventListener('click',
       function() {
         if(METAINDEX > 0) {
-          METAINDEX--;
+          if(METAKEY) {
+            while(!PDFJS.multiple[METAINDEX].keypage && 
+              METAINDEX > 0){
+                
+              METAINDEX--;
+            }
+          } else {
+            METAINDEX--;
+          }
         } 
         PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
       });
@@ -1451,8 +1473,17 @@ function webViewerInitialized() {
   if(document.getElementById('meta-next')){
     document.getElementById('meta-next').addEventListener('click',
       function() {
+
         if(METAINDEX < PDFJS.multiple.length-1) {
-          METAINDEX++;
+          if(METAKEY) {
+            while(!PDFJS.multiple[METAINDEX].keypage && 
+              METAINDEX < PDFJS.multiple.length-1){
+                
+              METAINDEX++;
+            }
+          } else {
+            METAINDEX++;
+          }
         }
         PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
       });
