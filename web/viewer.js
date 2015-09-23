@@ -736,9 +736,11 @@ var PDFViewerApplication = {
     });
 
     var pagesCount = pdfDocument.numPages;
-    document.getElementById('numPages').textContent =
-      mozL10n.get('page_of', {pageCount: pagesCount}, 'of {{pageCount}}');
-    document.getElementById('pageNumber').max = pagesCount;
+    if(document.getElementById('numPages')){
+      document.getElementById('numPages').textContent =
+        mozL10n.get('page_of', {pageCount: pagesCount}, 'of {{pageCount}}');
+      document.getElementById('pageNumber').max = pagesCount;
+    }
 
     var id = this.documentFingerprint = pdfDocument.fingerprint;
     var store = this.store = new ViewHistory(id);
@@ -962,8 +964,10 @@ var PDFViewerApplication = {
 
     // When opening a new file, when one is already loaded in the viewer,
     // ensure that the 'pageNumber' element displays the correct value.
-    document.getElementById('pageNumber').value =
-      this.pdfViewer.currentPageNumber;
+    if(document.getElementById('pageNumber')) {
+      document.getElementById('pageNumber').value =
+        this.pdfViewer.currentPageNumber;
+    }
 
     if (this.initialDestination) {
       this.pdfLinkService.navigateTo(this.initialDestination);
@@ -1355,9 +1359,11 @@ function webViewerInitialized() {
   }
 
   if (!PDFViewerApplication.supportsFullscreen) {
-    document.getElementById('presentationMode').classList.add('hidden');
-    document.getElementById('secondaryPresentationMode').
-      classList.add('hidden');
+    if(document.getElementById('presentationMode')){
+      document.getElementById('presentationMode').classList.add('hidden');
+      document.getElementById('secondaryPresentationMode').
+        classList.add('hidden');
+    }
   }
 
   if (PDFViewerApplication.supportsIntegratedFind) {
@@ -1369,7 +1375,9 @@ function webViewerInitialized() {
     PDFViewerApplication.fallback.bind(PDFViewerApplication));
 
   // Suppress context menus for some controls
-  document.getElementById('scaleSelect').oncontextmenu = noContextMenuHandler;
+  if(document.getElementById('scaleSelect')) {
+    document.getElementById('scaleSelect').oncontextmenu = noContextMenuHandler;
+  }
 
   var mainContainer = document.getElementById('mainContainer');
   var outerContainer = document.getElementById('outerContainer');
@@ -1415,48 +1423,65 @@ function webViewerInitialized() {
       PDFViewerApplication.switchSidebarView('attachments');
     });
 
-  document.getElementById('previous').addEventListener('click',
+  if(document.getElementById('previous')){
+    document.getElementById('previous').addEventListener('click',
+      function() {
+        PDFViewerApplication.page--;
+      });
+  }
+
+  if(document.getElementById('next')){
+    document.getElementById('next').addEventListener('click',
+      function() {
+        PDFViewerApplication.page++;
+      });
+  }
+  
+  if(document.getElementById('zoomIn')) {
+    document.getElementById('zoomIn').addEventListener('click',
+      function() {
+        PDFViewerApplication.zoomIn();
+      });
+  }
+
+  if(document.getElementById('zoomOut')) {
+    document.getElementById('zoomOut').addEventListener('click',
+      function() {
+        PDFViewerApplication.zoomOut();
+      });
+  }
+
+  if(document.getElementById('pageNumber')) {
+    document.getElementById('pageNumber').addEventListener('click', 
     function() {
-      PDFViewerApplication.page--;
+      this.select();
     });
 
-  document.getElementById('next').addEventListener('click',
+    document.getElementById('pageNumber').addEventListener('change', 
     function() {
-      PDFViewerApplication.page++;
-    });
+      // Handle the user inputting a floating point number.
+      PDFViewerApplication.page = (this.value | 0);
 
-  document.getElementById('zoomIn').addEventListener('click',
+      if (this.value !== (this.value | 0).toString()) {
+        this.value = PDFViewerApplication.page;
+      }
+    });
+  }
+
+  if(document.getElementById('scaleSelect')) {
+    document.getElementById('scaleSelect').addEventListener('change', 
     function() {
-      PDFViewerApplication.zoomIn();
+      if (this.value === 'custom') {
+        return;
+      }
+      PDFViewerApplication.pdfViewer.currentScaleValue = this.value;
     });
+  }
 
-  document.getElementById('zoomOut').addEventListener('click',
-    function() {
-      PDFViewerApplication.zoomOut();
-    });
-
-  document.getElementById('pageNumber').addEventListener('click', function() {
-    this.select();
-  });
-
-  document.getElementById('pageNumber').addEventListener('change', function() {
-    // Handle the user inputting a floating point number.
-    PDFViewerApplication.page = (this.value | 0);
-
-    if (this.value !== (this.value | 0).toString()) {
-      this.value = PDFViewerApplication.page;
-    }
-  });
-
-  document.getElementById('scaleSelect').addEventListener('change', function() {
-    if (this.value === 'custom') {
-      return;
-    }
-    PDFViewerApplication.pdfViewer.currentScaleValue = this.value;
-  });
-
-  document.getElementById('presentationMode').addEventListener('click',
-    SecondaryToolbar.presentationModeClick.bind(SecondaryToolbar));
+  if(document.getElementById('presentationMode')) {
+    document.getElementById('presentationMode').addEventListener('click',
+      SecondaryToolbar.presentationModeClick.bind(SecondaryToolbar));
+  }
 
   /*document.getElementById('openFile').addEventListener('click',
     SecondaryToolbar.openFileClick.bind(SecondaryToolbar));
@@ -1530,8 +1555,10 @@ document.addEventListener('pagerendered', function (e) {
   // If the page is still visible when it has finished rendering,
   // ensure that the page number input loading indicator is hidden.
   if (pageNumber === PDFViewerApplication.page) {
-    var pageNumberInput = document.getElementById('pageNumber');
-    pageNumberInput.classList.remove(PAGE_NUMBER_LOADING_INDICATOR);
+    if(document.getElementById('pageNumber')) {
+      var pageNumberInput = document.getElementById('pageNumber');
+      pageNumberInput.classList.remove(PAGE_NUMBER_LOADING_INDICATOR);
+    }
   }
 
 //#if !PRODUCTION
@@ -1646,8 +1673,10 @@ window.addEventListener('updateviewarea', function (evt) {
   });
   var href =
     PDFViewerApplication.pdfLinkService.getAnchorUrl(location.pdfOpenParams);
-  document.getElementById('viewBookmark').href = href;
-  document.getElementById('secondaryViewBookmark').href = href;
+  if(document.getElementById('viewBookmark')) {
+    document.getElementById('viewBookmark').href = href;
+    document.getElementById('secondaryViewBookmark').href = href;
+  }
 
   // Update the current bookmark in the browsing history.
   PDFViewerApplication.pdfHistory.updateCurrentBookmark(location.pdfOpenParams,
@@ -1657,11 +1686,12 @@ window.addEventListener('updateviewarea', function (evt) {
   var pageNumberInput = document.getElementById('pageNumber');
   var currentPage =
     PDFViewerApplication.pdfViewer.getPageView(PDFViewerApplication.page - 1);
-
-  if (currentPage.renderingState === RenderingStates.FINISHED) {
-    pageNumberInput.classList.remove(PAGE_NUMBER_LOADING_INDICATOR);
-  } else {
-    pageNumberInput.classList.add(PAGE_NUMBER_LOADING_INDICATOR);
+  if(document.getElementById('pageNumber')){
+    if (currentPage.renderingState === RenderingStates.FINISHED) {
+      pageNumberInput.classList.remove(PAGE_NUMBER_LOADING_INDICATOR);
+    } else {
+      pageNumberInput.classList.add(PAGE_NUMBER_LOADING_INDICATOR);
+    }
   }
 }, true);
 
@@ -1734,18 +1764,22 @@ window.addEventListener('change', function webViewerChange(evt) {
 //#endif
 
 function selectScaleOption(value) {
-  var options = document.getElementById('scaleSelect').options;
-  var predefinedValueFound = false;
-  for (var i = 0, ii = options.length; i < ii; i++) {
-    var option = options[i];
-    if (option.value !== value) {
-      option.selected = false;
-      continue;
+  if(document.getElementById('scaleSelect')) {
+    var options = document.getElementById('scaleSelect').options;
+    var predefinedValueFound = false;
+    for (var i = 0, ii = options.length; i < ii; i++) {
+      var option = options[i];
+      if (option.value !== value) {
+        option.selected = false;
+        continue;
+      }
+      option.selected = true;
+      predefinedValueFound = true;
     }
-    option.selected = true;
-    predefinedValueFound = true;
+    return predefinedValueFound;
+  } else {
+    return false;
   }
-  return predefinedValueFound;
 }
 
 window.addEventListener('localized', function localized(evt) {
@@ -1755,18 +1789,20 @@ window.addEventListener('localized', function localized(evt) {
     // Adjust the width of the zoom box to fit the content.
     // Note: If the window is narrow enough that the zoom box is not visible,
     //       we temporarily show it to be able to adjust its width.
-    var container = document.getElementById('scaleSelectContainer');
-    if (container.clientWidth === 0) {
-      container.setAttribute('style', 'display: inherit;');
-    }
-    if (container.clientWidth > 0) {
-      var select = document.getElementById('scaleSelect');
-      select.setAttribute('style', 'min-width: inherit;');
-      var width = select.clientWidth + SCALE_SELECT_CONTAINER_PADDING;
-      select.setAttribute('style', 'min-width: ' +
-                                   (width + SCALE_SELECT_PADDING) + 'px;');
-      container.setAttribute('style', 'min-width: ' + width + 'px; ' +
-                                      'max-width: ' + width + 'px;');
+    if(document.getElementById('scaleSelectContainer')) {
+      var container = document.getElementById('scaleSelectContainer');
+      if (container.clientWidth === 0) {
+        container.setAttribute('style', 'display: inherit;');
+      }
+      if (container.clientWidth > 0) {
+        var select = document.getElementById('scaleSelect');
+        select.setAttribute('style', 'min-width: inherit;');
+        var width = select.clientWidth + SCALE_SELECT_CONTAINER_PADDING;
+        select.setAttribute('style', 'min-width: ' +
+                                     (width + SCALE_SELECT_PADDING) + 'px;');
+        container.setAttribute('style', 'min-width: ' + width + 'px; ' +
+                                        'max-width: ' + width + 'px;');
+      }
     }
 
     // Set the 'max-height' CSS property of the secondary toolbar.
@@ -1775,18 +1811,24 @@ window.addEventListener('localized', function localized(evt) {
 }, true);
 
 window.addEventListener('scalechange', function scalechange(evt) {
-  document.getElementById('zoomOut').disabled = (evt.scale === MIN_SCALE);
-  document.getElementById('zoomIn').disabled = (evt.scale === MAX_SCALE);
+  if(document.getElementById('zoomOut')) {
+    document.getElementById('zoomOut').disabled = (evt.scale === MIN_SCALE);
+  }
+  if(document.getElementById('zoomIn')) {
+    document.getElementById('zoomIn').disabled = (evt.scale === MAX_SCALE);
+  }
 
   // Update the 'scaleSelect' DOM element.
   var predefinedValueFound = selectScaleOption(evt.presetValue ||
                                                '' + evt.scale);
   if (!predefinedValueFound) {
-    var customScaleOption = document.getElementById('customScaleOption');
-    var customScale = Math.round(evt.scale * 10000) / 100;
-    customScaleOption.textContent =
-      mozL10n.get('page_scale_percent', { scale: customScale }, '{{scale}}%');
-    customScaleOption.selected = true;
+    if(document.getElementById('customScaleOption')) {
+      var customScaleOption = document.getElementById('customScaleOption');
+      var customScale = Math.round(evt.scale * 10000) / 100;
+      customScaleOption.textContent =
+        mozL10n.get('page_scale_percent', { scale: customScale }, '{{scale}}%');
+      customScaleOption.selected = true;
+    }
   }
   if (!PDFViewerApplication.initialized) {
     return;
@@ -1797,18 +1839,27 @@ window.addEventListener('scalechange', function scalechange(evt) {
 window.addEventListener('pagechange', function pagechange(evt) {
   var page = evt.pageNumber;
   if (evt.previousPageNumber !== page) {
-    document.getElementById('pageNumber').value = page;
+    if(document.getElementById('pageNumber')) {
+      document.getElementById('pageNumber').value = page;
+    }
     if (PDFViewerApplication.sidebarOpen) {
       PDFViewerApplication.pdfThumbnailViewer.scrollThumbnailIntoView(page);
     }
   }
   var numPages = PDFViewerApplication.pagesCount;
 
-  document.getElementById('previous').disabled = (page <= 1);
-  document.getElementById('next').disabled = (page >= numPages);
-
-  document.getElementById('firstPage').disabled = (page <= 1);
-  document.getElementById('lastPage').disabled = (page >= numPages);
+  if(document.getElementById('previous')) {
+    document.getElementById('previous').disabled = (page <= 1);
+  }
+  if(document.getElementById('next')) {
+    document.getElementById('next').disabled = (page >= numPages);
+  }
+  if(document.getElementById('firstPage')) {
+    document.getElementById('firstPage').disabled = (page <= 1);
+  }
+  if(document.getElementById('lastPage')) {
+    document.getElementById('lastPage').disabled = (page >= numPages);
+  }
 
   // we need to update stats
   if (PDFJS.pdfBug && Stats.enabled) {

@@ -44,9 +44,11 @@ var PDFFindBar = (function PDFFindBarClosure() {
 
     // Add event listeners to the DOM elements.
     var self = this;
-    this.toggleButton.addEventListener('click', function() {
-      self.toggle();
-    });
+    if(this.toggleButton) {
+      this.toggleButton.addEventListener('click', function() {
+        self.toggle();
+      });
+    }
 
     this.findField.addEventListener('input', function() {
       self.dispatchEvent('');
