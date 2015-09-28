@@ -1457,7 +1457,7 @@ function webViewerInitialized() {
       function() {
         if(METAINDEX > 0) {
           if(METAKEY) {
-            while(!PDFJS.multiple[METAINDEX].keypage && 
+            while(!PDFJS.multiple[METAINDEX].key_page && 
               METAINDEX > 0){
                 
               METAINDEX--;
@@ -1476,7 +1476,7 @@ function webViewerInitialized() {
 
         if(METAINDEX < PDFJS.multiple.length-1) {
           if(METAKEY) {
-            while(!PDFJS.multiple[METAINDEX].keypage && 
+            while(!PDFJS.multiple[METAINDEX].key_page && 
               METAINDEX < PDFJS.multiple.length-1){
                 
               METAINDEX++;
