@@ -27,7 +27,7 @@ var PDFURLFinder = (function PDFFindBarClosure() {
                 params = window.PDFView.parseQueryString(loc);
             }
 
-            if ((params[paramname] === undefined) && (typeof PDFJS.multiple === 'undefined')) {
+            if ((params[paramname] !== undefined) && (typeof PDFJS.multiple === 'undefined')) {
                 httpGet(params[paramname],function(data){
                 PDFJS.multiple=data;
               });
