@@ -162,8 +162,14 @@ var PDFFindController = (function PDFFindControllerClosure() {
 
         //Nirdosh: regular expression to match full sentence
         var regex=new RegExp('[^.]* '+query+'[^.]*\.','gi');
+        //New regex object to test if contains a matching word or not. using the same regex ignores the matches
+        var regexTest=new RegExp('[^.]* '+query+'[^.]*\.','gi');
         var match;
-        // console.log(query);
+        //check if there are any matches for the regex or not
+        if(!regexTest.test(pageContent)){
+          //if not just highlight the term
+          regex=new RegExp(query,'gi');
+        }
         while ((match = regex.exec(pageContent)) !== null) {
           if (match.index === regex.lastIndex) {
             ++regex.lastIndex;

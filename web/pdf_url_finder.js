@@ -27,10 +27,10 @@ var PDFURLFinder = (function PDFFindBarClosure() {
                 params = window.PDFView.parseQueryString(loc);
             }
 
-            if (params[paramname] !== undefined) {
-                var parambase = JSON.parse(params[paramname]);
-                //assign the full data for the topic to PDFJS.multiple
-                PDFJS.multiple = parambase;
+            if ((params[paramname] !== undefined) && (typeof PDFJS.multiple === 'undefined')) {
+                httpGet(params[paramname],function(data){
+                PDFJS.multiple=data;
+              });
             }
 
             var fc = page.textLayer.findController;
@@ -51,6 +51,17 @@ var PDFURLFinder = (function PDFFindBarClosure() {
         } catch (e) {
 
         }
+    }
+
+    function httpGet(theUrl, callback)
+    {
+      var xmlHttp = new XMLHttpRequest();
+      xmlHttp.onreadystatechange = function() { 
+          if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+              callback(JSON.parse(xmlHttp.responseText));
+      }
+      xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+      xmlHttp.send(null);
     }
 
     return PDFURLFinder;
