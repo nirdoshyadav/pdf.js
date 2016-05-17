@@ -37,6 +37,7 @@ var SCALE_SELECT_PADDING = 22;
 var PAGE_NUMBER_LOADING_INDICATOR = 'visiblePageIsLoading';
 var DISABLE_AUTO_FETCH_LOADING_BAR_TIMEOUT = 5000;
 var METAINDEX = 0;
+var KEYPAGEMETAINDEX = 0;
 var METAKEY = false;
 
 PDFJS.imageResourcesPath = './images/';
@@ -1442,50 +1443,98 @@ function webViewerInitialized() {
   if(document.getElementById('meta-key')){
     document.getElementById('meta-key').addEventListener('click',
       function() {
-        if(document.getElementById('meta-key').className === ''){
-          document.getElementById('meta-key').className = 'disabled';
-          METAKEY = false;
-        } else {
-          document.getElementById('meta-key').className = '';
-          METAKEY = true;
+        //only enable if we have some key pages
+        if(PDFJS.key_page_data.length > 0){
+          if(document.getElementById('meta-key').className === ''){
+            document.getElementById('meta-key').className = 'disabled';
+            METAKEY = false;
+            //move to the first highlight page
+            METAINDEX =0;
+            PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
+            //make the previous disabled as this is first highlight
+            document.getElementById('meta-prev').className = 'disabled';
+            if(PDFJS.multiple.length > 1){
+              document.getElementById('meta-next').className = '';
+            }
+          } else {
+             document.getElementById('meta-key').className = '';
+             METAKEY = true;
+             KEYPAGEMETAINDEX =0;
+             PDFViewerApplication.page = PDFJS.key_page_data[KEYPAGEMETAINDEX].page;
+             //make the previous disabled as this is first highlight
+             document.getElementById('meta-prev').className = 'disabled';
+             if(PDFJS.key_page_data.length > 1){
+              document.getElementById('meta-next').className = '';
+            }
+          }
         }
       });
   }
-  
+
   if(document.getElementById('meta-prev')){
     document.getElementById('meta-prev').addEventListener('click',
       function() {
-        if(METAINDEX > 0) {
-          if(METAKEY) {
-            while(!PDFJS.multiple[METAINDEX].key_page && 
-              METAINDEX > 0){
-                
-              METAINDEX--;
-            }
-          } else {
-            METAINDEX--;
+        if(METAKEY) {
+          if(KEYPAGEMETAINDEX > 0){
+            KEYPAGEMETAINDEX --;
+            PDFViewerApplication.page = PDFJS.key_page_data[KEYPAGEMETAINDEX].page;
           }
-        } 
-        PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
-      });
+          //disable the button once last highlight is shown
+          if(KEYPAGEMETAINDEX == 0){
+             document.getElementById('meta-prev').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(KEYPAGEMETAINDEX < PDFJS.multiple.length -1){
+             document.getElementById('meta-next').className = '';
+          }
+        } else {
+          if(METAINDEX > 0){
+            METAINDEX--;
+            PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
+          }
+          //disable the button once last highlight is shown
+          if(METAINDEX == 0){
+             document.getElementById('meta-prev').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(METAINDEX < PDFJS.multiple.length -1){
+             document.getElementById('meta-next').className = '';
+          }
+        }
+    });
   }
-  
+
   if(document.getElementById('meta-next')){
     document.getElementById('meta-next').addEventListener('click',
       function() {
-
-        if(METAINDEX < PDFJS.multiple.length-1) {
-          if(METAKEY) {
-            while(!PDFJS.multiple[METAINDEX].key_page && 
-              METAINDEX < PDFJS.multiple.length-1){
-                
-              METAINDEX++;
-            }
-          } else {
+        if(METAKEY) {
+          if(KEYPAGEMETAINDEX < PDFJS.key_page_data.length -1){
+            KEYPAGEMETAINDEX++;
+            PDFViewerApplication.page = PDFJS.key_page_data[KEYPAGEMETAINDEX].page;
+          }
+          //disable the button once last highlight is shown
+          if(KEYPAGEMETAINDEX >= PDFJS.key_page_data.length - 1){
+             document.getElementById('meta-next').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(KEYPAGEMETAINDEX > 0){
+             document.getElementById('meta-prev').className = '';
+          }
+        } else {
+          if(METAINDEX < PDFJS.multiple.length -1){
             METAINDEX++;
+            PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
+          }
+          //disable the button once last highlight is shown
+          if(METAINDEX >= PDFJS.multiple.length - 1){
+             document.getElementById('meta-next').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(METAINDEX > 0){
+             document.getElementById('meta-prev').className = '';
           }
         }
-        PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
+
       });
   }
   
