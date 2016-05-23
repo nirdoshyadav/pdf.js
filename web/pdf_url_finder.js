@@ -29,7 +29,23 @@ var PDFURLFinder = (function PDFFindBarClosure() {
 
             if ((params[paramname] !== undefined) && (typeof PDFJS.multiple === 'undefined')) {
                 httpGet(params[paramname],function(data){
-                PDFJS.multiple=data;
+                    PDFJS.multiple=data;
+                    PDFJS.key_page_data=[];
+                    //load the first highloighted page
+                    if(typeof PDFJS.multiple !== 'undefined' && PDFJS.multiple.length >0){
+                      PDFViewerApplication.page = PDFJS.multiple[0].page;
+                      //make the previous disabled as this is first highlight
+                       document.getElementById('meta-prev').className = 'disabled';
+                      //check if it has any key pages, if not disable the key_page button
+                      for(var i=0; i<PDFJS.multiple.length; i++){
+                         if(PDFJS.multiple[i].key_page === true){
+                            PDFJS.key_page_data.push(PDFJS.multiple[i]);
+                        }
+                      }
+                      if(PDFJS.key_page_data.length > 0){
+                        document.getElementById('meta-key').className = 'disabled';
+                      }
+                    }
               });
             }
 

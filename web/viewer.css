@@ -30,8 +30,12 @@
   top: 5px;
 }
 
-#meta-key.disabled {
+#meta-key.disabled ,#meta-next.disabled, #meta-prev.disabled{
   opacity: .3;
+}
+
+#meta-key.hide ,#meta-next.hide, #meta-prev.hide{
+  opacity: 0;
 }
 
 * {
