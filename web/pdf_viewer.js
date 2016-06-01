@@ -1,5 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 /* Copyright 2014 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +12,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- /*globals watchScroll, PDFPageView, UNKNOWN_SCALE,
-           SCROLLBAR_PADDING, VERTICAL_PADDING, MAX_AUTO_SCALE, CSS_UNITS,
-           DEFAULT_SCALE, scrollIntoView, getVisibleElements, RenderingStates,
-           PDFJS, Promise, TextLayerBuilder, PDFRenderingQueue,
-           AnnotationsLayerBuilder, DEFAULT_SCALE_VALUE */
 
 'use strict';
+
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define('pdfjs-web/pdf_viewer', ['exports', 'pdfjs-web/ui_utils',
+      'pdfjs-web/pdf_page_view', 'pdfjs-web/pdf_rendering_queue',
+      'pdfjs-web/text_layer_builder', 'pdfjs-web/annotation_layer_builder',
+      'pdfjs-web/pdf_link_service', 'pdfjs-web/pdfjs'], factory);
+  } else if (typeof exports !== 'undefined') {
+    factory(exports, require('./ui_utils.js'), require('./pdf_page_view.js'),
+      require('./pdf_rendering_queue.js'), require('./text_layer_builder.js'),
+      require('./annotation_layer_builder.js'),
+      require('./pdf_link_service.js'), require('./pdfjs.js'));
+  } else {
+    factory((root.pdfjsWebPDFViewer = {}), root.pdfjsWebUIUtils,
+      root.pdfjsWebPDFPageView, root.pdfjsWebPDFRenderingQueue,
+      root.pdfjsWebTextLayerBuilder, root.pdfjsWebAnnotationLayerBuilder,
+      root.pdfjsWebPDFLinkService, root.pdfjsWebPDFJS);
+  }
+}(this, function (exports, uiUtils, pdfPageView, pdfRenderingQueue,
+                  textLayerBuilder, annotationLayerBuilder, pdfLinkService,
+                  pdfjsLib) {
+
+var UNKNOWN_SCALE = uiUtils.UNKNOWN_SCALE;
+var SCROLLBAR_PADDING = uiUtils.SCROLLBAR_PADDING;
+var VERTICAL_PADDING = uiUtils.VERTICAL_PADDING;
+var MAX_AUTO_SCALE = uiUtils.MAX_AUTO_SCALE;
+var CSS_UNITS = uiUtils.CSS_UNITS;
+var DEFAULT_SCALE = uiUtils.DEFAULT_SCALE;
+var DEFAULT_SCALE_VALUE = uiUtils.DEFAULT_SCALE_VALUE;
+var scrollIntoView = uiUtils.scrollIntoView;
+var watchScroll = uiUtils.watchScroll;
+var getVisibleElements = uiUtils.getVisibleElements;
+var PDFPageView = pdfPageView.PDFPageView;
+var RenderingStates = pdfRenderingQueue.RenderingStates;
+var PDFRenderingQueue = pdfRenderingQueue.PDFRenderingQueue;
+var TextLayerBuilder = textLayerBuilder.TextLayerBuilder;
+var AnnotationLayerBuilder = annotationLayerBuilder.AnnotationLayerBuilder;
+var SimpleLinkService = pdfLinkService.SimpleLinkService;
 
 var PresentationModeState = {
   UNKNOWN: 0,
@@ -29,19 +60,15 @@ var PresentationModeState = {
   FULLSCREEN: 3,
 };
 
-var IGNORE_CURRENT_POSITION_ON_ZOOM = false;
 var DEFAULT_CACHE_SIZE = 10;
-
-//#include pdf_rendering_queue.js
-//#include pdf_page_view.js
-//#include text_layer_builder.js
-//#include annotations_layer_builder.js
 
 /**
  * @typedef {Object} PDFViewerOptions
  * @property {HTMLDivElement} container - The container for the viewer element.
  * @property {HTMLDivElement} viewer - (optional) The viewer element.
  * @property {IPDFLinkService} linkService - The navigation/linking service.
+ * @property {DownloadManager} downloadManager - (optional) The download
+ *   manager component.
  * @property {PDFRenderingQueue} renderingQueue - (optional) The rendering
  *   queue object.
  * @property {boolean} removePageBorders - (optional) Removes the border shadow
@@ -94,6 +121,7 @@ var PDFViewer = (function pdfViewer() {
     this.container = options.container;
     this.viewer = options.viewer || options.container.firstElementChild;
     this.linkService = options.linkService || new SimpleLinkService();
+    this.downloadManager = options.downloadManager || null;
     this.removePageBorders = options.removePageBorders || false;
 
     this.defaultRenderingQueue = !options.renderingQueue;
@@ -286,7 +314,7 @@ var PDFViewer = (function pdfViewer() {
         var viewport = pdfPage.getViewport(scale * CSS_UNITS);
         for (var pageNum = 1; pageNum <= pagesCount; ++pageNum) {
           var textLayerFactory = null;
-          if (!PDFJS.disableTextLayer) {
+          if (!pdfjsLib.PDFJS.disableTextLayer) {
             textLayerFactory = this;
           }
           var pageView = new PDFPageView({
@@ -296,7 +324,7 @@ var PDFViewer = (function pdfViewer() {
             defaultViewport: viewport.clone(),
             renderingQueue: this.renderingQueue,
             textLayerFactory: textLayerFactory,
-            annotationsLayerFactory: this
+            annotationLayerFactory: this
           });
           bindOnAfterAndBeforeDraw(pageView);
           this._pages.push(pageView);
@@ -308,7 +336,7 @@ var PDFViewer = (function pdfViewer() {
         // starts to create the correct size canvas. Wait until one page is
         // rendered so we don't tie up too many resources early on.
         onePageRendered.then(function () {
-          if (!PDFJS.disableAutoFetch) {
+          if (!pdfjsLib.PDFJS.disableAutoFetch) {
             var getPagesLeft = pagesCount;
             for (var pageNum = 1; pageNum <= pagesCount; ++pageNum) {
               pdfDocument.getPage(pageNum).then(function (pageNum, pdfPage) {
@@ -398,7 +426,7 @@ var PDFViewer = (function pdfViewer() {
 
       if (!noScroll) {
         var page = this._currentPageNumber, dest;
-        if (this._location && !IGNORE_CURRENT_POSITION_ON_ZOOM &&
+        if (this._location && !pdfjsLib.PDFJS.ignoreCurrentPositionOnZoom &&
             !(this.isInPresentationMode || this.isChangingPresentationMode)) {
           page = this._location.pageNumber;
           dest = [null, { name: 'XYZ' }, this._location.left,
@@ -470,6 +498,10 @@ var PDFViewer = (function pdfViewer() {
      */
     scrollPageIntoView: function PDFViewer_scrollPageIntoView(pageNumber,
                                                               dest) {
+      if (!this.pdfDocument) {
+        return;
+      }
+
       var pageView = this._pages[pageNumber - 1];
 
       if (this.isInPresentationMode) {
@@ -515,6 +547,12 @@ var PDFViewer = (function pdfViewer() {
         case 'FitBH':
           y = dest[2];
           scale = 'page-width';
+          // According to the PDF spec, section 12.3.2.2, a `null` value in the
+          // parameter should maintain the position relative to the new page.
+          if (y === null && this._location) {
+            x = this._location.left;
+            y = this._location.top;
+          }
           break;
         case 'FitV':
         case 'FitBV':
@@ -652,7 +690,7 @@ var PDFViewer = (function pdfViewer() {
     },
 
     get isChangingPresentationMode() {
-      return this.PresentationModeState === PresentationModeState.CHANGING;
+      return this.presentationModeState === PresentationModeState.CHANGING;
     },
 
     get isHorizontalScrollbarEnabled() {
@@ -721,7 +759,7 @@ var PDFViewer = (function pdfViewer() {
 
     getPageTextContent: function (pageIndex) {
       return this.pdfDocument.getPage(pageIndex + 1).then(function (page) {
-        return page.getTextContent();
+        return page.getTextContent({ normalizeWhitespace: true });
       });
     },
 
@@ -743,13 +781,14 @@ var PDFViewer = (function pdfViewer() {
     /**
      * @param {HTMLDivElement} pageDiv
      * @param {PDFPage} pdfPage
-     * @returns {AnnotationsLayerBuilder}
+     * @returns {AnnotationLayerBuilder}
      */
-    createAnnotationsLayerBuilder: function (pageDiv, pdfPage) {
-      return new AnnotationsLayerBuilder({
+    createAnnotationLayerBuilder: function (pageDiv, pdfPage) {
+      return new AnnotationLayerBuilder({
         pageDiv: pageDiv,
         pdfPage: pdfPage,
-        linkService: this.linkService
+        linkService: this.linkService,
+        downloadManager: this.downloadManager
       });
     },
 
@@ -761,51 +800,6 @@ var PDFViewer = (function pdfViewer() {
   return PDFViewer;
 })();
 
-var SimpleLinkService = (function SimpleLinkServiceClosure() {
-  function SimpleLinkService() {}
-
-  SimpleLinkService.prototype = {
-    /**
-     * @returns {number}
-     */
-    get page() {
-      return 0;
-    },
-    /**
-     * @param {number} value
-     */
-    set page(value) {},
-    /**
-     * @param dest - The PDF destination object.
-     */
-    navigateTo: function (dest) {},
-    /**
-     * @param dest - The PDF destination object.
-     * @returns {string} The hyperlink to the PDF object.
-     */
-    getDestinationHash: function (dest) {
-      return '#';
-    },
-    /**
-     * @param hash - The PDF parameters/hash.
-     * @returns {string} The hyperlink to the PDF object.
-     */
-    getAnchorUrl: function (hash) {
-      return '#';
-    },
-    /**
-     * @param {string} hash
-     */
-    setHash: function (hash) {},
-    /**
-     * @param {string} action
-     */
-    executeNamedAction: function (action) {},
-    /**
-     * @param {number} pageNum - page number.
-     * @param {Object} pageRef - reference to the page.
-     */
-    cachePageRef: function (pageNum, pageRef) {}
-  };
-  return SimpleLinkService;
-})();
+exports.PresentationModeState = PresentationModeState;
+exports.PDFViewer = PDFViewer;
+}));

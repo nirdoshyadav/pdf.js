@@ -1,12 +1,42 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 /* globals expect, it, describe, Dict, Name, Annotation, AnnotationBorderStyle,
-           AnnotationBorderStyleType */
+           AnnotationBorderStyleType, AnnotationType, AnnotationFlag, PDFJS,
+           beforeEach, afterEach, stringToBytes, AnnotationFactory, Ref,
+           beforeAll, afterAll */
 
 'use strict';
 
 describe('Annotation layer', function() {
+  function XrefMock(queue) {
+    this.queue = queue || [];
+  }
+  XrefMock.prototype = {
+    fetchIfRef: function() {
+      return this.queue.shift();
+    }
+  };
+
   describe('Annotation', function() {
+    it('should set and get flags', function() {
+      var dict = new Dict();
+      dict.set('Subtype', '');
+      var annotation = new Annotation({ dict: dict, ref: 0 });
+      annotation.setFlags(13);
+
+      expect(annotation.hasFlag(AnnotationFlag.INVISIBLE)).toEqual(true);
+      expect(annotation.hasFlag(AnnotationFlag.NOZOOM)).toEqual(true);
+      expect(annotation.hasFlag(AnnotationFlag.PRINT)).toEqual(true);
+      expect(annotation.hasFlag(AnnotationFlag.READONLY)).toEqual(false);
+    });
+
+    it('should be viewable and not printable by default', function() {
+      var dict = new Dict();
+      dict.set('Subtype', '');
+      var annotation = new Annotation({ dict: dict, ref: 0 });
+
+      expect(annotation.viewable).toEqual(true);
+      expect(annotation.printable).toEqual(false);
+    });
+
     it('should set and get a valid rectangle', function() {
       var dict = new Dict();
       dict.set('Subtype', '');
@@ -31,7 +61,7 @@ describe('Annotation layer', function() {
       var annotation = new Annotation({ dict: dict, ref: 0 });
       annotation.setColor('red');
 
-      expect(annotation.color).toEqual([0, 0, 0]);
+      expect(annotation.color).toEqual(new Uint8Array([0, 0, 0]));
     });
 
     it('should set and get a transparent color', function() {
@@ -49,7 +79,7 @@ describe('Annotation layer', function() {
       var annotation = new Annotation({ dict: dict, ref: 0 });
       annotation.setColor([0.4]);
 
-      expect(annotation.color).toEqual([102, 102, 102]);
+      expect(annotation.color).toEqual(new Uint8Array([102, 102, 102]));
     });
 
     it('should set and get an RGB color', function() {
@@ -58,7 +88,7 @@ describe('Annotation layer', function() {
       var annotation = new Annotation({ dict: dict, ref: 0 });
       annotation.setColor([0, 0, 1]);
 
-      expect(annotation.color).toEqual([0, 0, 255]);
+      expect(annotation.color).toEqual(new Uint8Array([0, 0, 255]));
     });
 
     it('should set and get a CMYK color', function() {
@@ -67,7 +97,7 @@ describe('Annotation layer', function() {
       var annotation = new Annotation({ dict: dict, ref: 0 });
       annotation.setColor([0.1, 0.92, 0.84, 0.02]);
 
-      expect(annotation.color).toEqual([233, 59, 47]);
+      expect(annotation.color).toEqual(new Uint8Array([233, 59, 47]));
     });
 
     it('should not set and get an invalid color', function() {
@@ -76,7 +106,7 @@ describe('Annotation layer', function() {
       var annotation = new Annotation({ dict: dict, ref: 0 });
       annotation.setColor([0.4, 0.6]);
 
-      expect(annotation.color).toEqual([0, 0, 0]);
+      expect(annotation.color).toEqual(new Uint8Array([0, 0, 0]));
     });
   });
 
@@ -151,6 +181,181 @@ describe('Annotation layer', function() {
       borderStyle.setVerticalCornerRadius('three');
 
       expect(borderStyle.verticalCornerRadius).toEqual(0);
+    });
+  });
+
+  describe('LinkAnnotation', function() {
+    var annotationFactory;
+
+    beforeAll(function (done) {
+      annotationFactory = new AnnotationFactory();
+      done();
+    });
+
+    afterAll(function () {
+      annotationFactory = null;
+    });
+
+    it('should correctly parse a URI action', function() {
+      var actionDict = new Dict();
+      actionDict.set('Type', Name.get('Action'));
+      actionDict.set('S', Name.get('URI'));
+      actionDict.set('URI', 'http://www.ctan.org/tex-archive/info/lshort');
+
+      var annotationDict = new Dict();
+      annotationDict.set('Type', Name.get('Annot'));
+      annotationDict.set('Subtype', Name.get('Link'));
+      annotationDict.set('A', actionDict);
+
+      var xrefMock = new XrefMock([annotationDict]);
+      var annotationRef = new Ref(820, 0);
+
+      var annotation = annotationFactory.create(xrefMock, annotationRef);
+      var data = annotation.data;
+      expect(data.annotationType).toEqual(AnnotationType.LINK);
+
+      expect(data.url).toEqual('http://www.ctan.org/tex-archive/info/lshort');
+      expect(data.dest).toBeUndefined();
+    });
+
+    it('should correctly parse a URI action, where the URI entry ' +
+       'is missing a protocol', function() {
+      var actionDict = new Dict();
+      actionDict.set('Type', Name.get('Action'));
+      actionDict.set('S', Name.get('URI'));
+      actionDict.set('URI', 'www.hmrc.gov.uk');
+
+      var annotationDict = new Dict();
+      annotationDict.set('Type', Name.get('Annot'));
+      annotationDict.set('Subtype', Name.get('Link'));
+      annotationDict.set('A', actionDict);
+
+      var xrefMock = new XrefMock([annotationDict]);
+      var annotationRef = new Ref(353, 0);
+
+      var annotation = annotationFactory.create(xrefMock, annotationRef);
+      var data = annotation.data;
+      expect(data.annotationType).toEqual(AnnotationType.LINK);
+
+      expect(data.url).toEqual('http://www.hmrc.gov.uk');
+      expect(data.dest).toBeUndefined();
+    });
+
+    it('should correctly parse a GoTo action', function() {
+      var actionDict = new Dict();
+      actionDict.set('Type', Name.get('Action'));
+      actionDict.set('S', Name.get('GoTo'));
+      actionDict.set('D', 'page.157');
+
+      var annotationDict = new Dict();
+      annotationDict.set('Type', Name.get('Annot'));
+      annotationDict.set('Subtype', Name.get('Link'));
+      annotationDict.set('A', actionDict);
+
+      var xrefMock = new XrefMock([annotationDict]);
+      var annotationRef = new Ref(798, 0);
+
+      var annotation = annotationFactory.create(xrefMock, annotationRef);
+      var data = annotation.data;
+      expect(data.annotationType).toEqual(AnnotationType.LINK);
+
+      expect(data.url).toBeUndefined();
+      expect(data.dest).toEqual('page.157');
+    });
+
+    it('should correctly parse a GoToR action, where the FileSpec entry ' +
+       'is a string containing a relative URL', function() {
+      var actionDict = new Dict();
+      actionDict.set('Type', Name.get('Action'));
+      actionDict.set('S', Name.get('GoToR'));
+      actionDict.set('F', '../../0021/002156/215675E.pdf');
+      actionDict.set('D', '15');
+
+      var annotationDict = new Dict();
+      annotationDict.set('Type', Name.get('Annot'));
+      annotationDict.set('Subtype', Name.get('Link'));
+      annotationDict.set('A', actionDict);
+
+      var xrefMock = new XrefMock([annotationDict]);
+      var annotationRef = new Ref(489, 0);
+
+      var annotation = annotationFactory.create(xrefMock, annotationRef);
+      var data = annotation.data;
+      expect(data.annotationType).toEqual(AnnotationType.LINK);
+
+      expect(data.url).toBeUndefined();
+      expect(data.dest).toBeUndefined();
+      expect(data.newWindow).toBeFalsy();
+    });
+
+    it('should correctly parse a Named action', function() {
+      var actionDict = new Dict();
+      actionDict.set('Type', Name.get('Action'));
+      actionDict.set('S', Name.get('Named'));
+      actionDict.set('N', Name.get('GoToPage'));
+
+      var annotationDict = new Dict();
+      annotationDict.set('Type', Name.get('Annot'));
+      annotationDict.set('Subtype', Name.get('Link'));
+      annotationDict.set('A', actionDict);
+
+      var xrefMock = new XrefMock([annotationDict]);
+      var annotationRef = new Ref(12, 0);
+
+      var annotation = annotationFactory.create(xrefMock, annotationRef);
+      var data = annotation.data;
+      expect(data.annotationType).toEqual(AnnotationType.LINK);
+
+      expect(data.url).toBeUndefined();
+      expect(data.action).toEqual('GoToPage');
+    });
+
+    it('should correctly parse a simple Dest', function() {
+      var annotationDict = new Dict();
+      annotationDict.set('Type', Name.get('Annot'));
+      annotationDict.set('Subtype', Name.get('Link'));
+      annotationDict.set('Dest', Name.get('LI0'));
+
+      var xrefMock = new XrefMock([annotationDict]);
+      var annotationRef = new Ref(583, 0);
+
+      var annotation = annotationFactory.create(xrefMock, annotationRef);
+      var data = annotation.data;
+      expect(data.annotationType).toEqual(AnnotationType.LINK);
+
+      expect(data.url).toBeUndefined();
+      expect(data.dest).toEqual('LI0');
+    });
+  });
+
+  describe('FileAttachmentAnnotation', function() {
+    var loadingTask;
+    var annotations;
+
+    beforeEach(function(done) {
+      var pdfUrl = new URL('../pdfs/annotation-fileattachment.pdf',
+                           window.location).href;
+      loadingTask = PDFJS.getDocument(pdfUrl);
+      loadingTask.promise.then(function(pdfDocument) {
+        return pdfDocument.getPage(1).then(function(pdfPage) {
+          return pdfPage.getAnnotations().then(function (pdfAnnotations) {
+            annotations = pdfAnnotations;
+            done();
+          });
+        });
+      }).catch(function (reason) {
+        done.fail(reason);
+      });
+    });
+
+    afterEach(function() {
+      loadingTask.destroy();
+    });
+
+    it('should correctly parse a file attachment', function() {
+      var annotation = annotations[0];
+      expect(annotation.file.filename).toEqual('Test.txt');
+      expect(annotation.file.content).toEqual(stringToBytes('Test attachment'));
     });
   });
 });

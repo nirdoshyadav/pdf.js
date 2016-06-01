@@ -1,5 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 /* Copyright 2015 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +12,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* globals PDFViewer, PDFHistory, Promise, parseQueryString */
 
 'use strict';
+
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define('pdfjs-web/pdf_link_service', ['exports', 'pdfjs-web/ui_utils'],
+      factory);
+  } else if (typeof exports !== 'undefined') {
+    factory(exports, require('./ui_utils.js'));
+  } else {
+    factory((root.pdfjsWebPDFLinkService = {}), root.pdfjsWebUIUtils);
+  }
+}(this, function (exports, uiUtils) {
+
+var parseQueryString = uiUtils.parseQueryString;
 
 /**
  * Performs navigation functions inside PDF, such as opening specified page,
@@ -156,7 +166,7 @@ var PDFLinkService = (function () {
           return pdfOpenParams;
         }
       }
-      return '';
+      return this.getAnchorUrl('');
     },
 
     /**
@@ -301,3 +311,56 @@ var PDFLinkService = (function () {
 
   return PDFLinkService;
 })();
+
+var SimpleLinkService = (function SimpleLinkServiceClosure() {
+  function SimpleLinkService() {}
+
+  SimpleLinkService.prototype = {
+    /**
+     * @returns {number}
+     */
+    get page() {
+      return 0;
+    },
+    /**
+     * @param {number} value
+     */
+    set page(value) {},
+    /**
+     * @param dest - The PDF destination object.
+     */
+    navigateTo: function (dest) {},
+    /**
+     * @param dest - The PDF destination object.
+     * @returns {string} The hyperlink to the PDF object.
+     */
+    getDestinationHash: function (dest) {
+      return '#';
+    },
+    /**
+     * @param hash - The PDF parameters/hash.
+     * @returns {string} The hyperlink to the PDF object.
+     */
+    getAnchorUrl: function (hash) {
+      return '#';
+    },
+    /**
+     * @param {string} hash
+     */
+    setHash: function (hash) {},
+    /**
+     * @param {string} action
+     */
+    executeNamedAction: function (action) {},
+    /**
+     * @param {number} pageNum - page number.
+     * @param {Object} pageRef - reference to the page.
+     */
+    cachePageRef: function (pageNum, pageRef) {}
+  };
+  return SimpleLinkService;
+})();
+
+exports.PDFLinkService = PDFLinkService;
+exports.SimpleLinkService = SimpleLinkService;
+}));

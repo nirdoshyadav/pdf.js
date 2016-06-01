@@ -1,5 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 /* jshint node:true */
 /* globals cp, ls, test */
 
@@ -68,7 +66,14 @@ function preprocess(inFilename, outFilename, defines) {
     var realPath = fs.realpathSync(inFilename);
     var dir = path.dirname(realPath);
     try {
-      preprocess(path.join(dir, file), writeLine, defines);
+      var fullpath;
+      if (file.indexOf('$ROOT/') === 0) {
+        fullpath = path.join(__dirname, '../..',
+          file.substring('$ROOT/'.length));
+      } else {
+        fullpath = path.join(dir, file);
+      }
+      preprocess(fullpath, writeLine, defines);
     } catch (e) {
       if (e.code === 'ENOENT') {
         throw new Error('Failed to include "' + file + '" at ' + loc());
@@ -304,36 +309,6 @@ function build(setup) {
   });
 }
 exports.build = build;
-
-function getWorkerSrcFiles(filePath) {
-  var src = fs.readFileSync(filePath).toString();
-  var reSrcFiles = /var\s+otherFiles\s*=\s*(\[[^\]]*\])/;
-  var match = reSrcFiles.exec(src);
-  if (!match) {
-    throw new Error('Cannot find otherFiles array in ' + filePath);
-  }
-
-  var files = match[1].replace(/'/g, '"').replace(/^\s*\/\/.*/gm, '')
-    .replace(/,\s*]$/, ']');
-  try {
-    files = JSON.parse(files);
-  } catch (e) {
-    throw new Error('Failed to parse otherFiles in ' + filePath + ' as JSON, ' +
-                    e);
-  }
-
-  var srcFiles = files.filter(function(name) {
-    return name.indexOf('external') === -1;
-  });
-  var externalSrcFiles = files.filter(function(name) {
-    return name.indexOf('external') > -1;
-  });
-  return {
-    srcFiles: srcFiles,
-    externalSrcFiles: externalSrcFiles
-  };
-}
-exports.getWorkerSrcFiles = getWorkerSrcFiles;
 
 /**
  * Merge two defines arrays. Values in the second param will override values in

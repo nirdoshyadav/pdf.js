@@ -1,4 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* Copyright 2013 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +13,29 @@
  * limitations under the License.
  */
 
-/* globals chrome, PDFJS, PDFViewerApplication, OverlayManager */
+/* globals chrome, DEFAULT_PREFERENCES, DEFAULT_URL */
 'use strict';
 
-var ChromeCom = (function ChromeComClosure() {
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define('pdfjs-web/chromecom', ['exports', 'pdfjs-web/app',
+      'pdfjs-web/overlay_manager', 'pdfjs-web/preferences', 'pdfjs-web/pdfjs'],
+      factory);
+  } else if (typeof exports !== 'undefined') {
+    factory(exports, require('./app.js'), require('./overlay_manager.js'),
+      require('./preferences.js'), require('./pdfjs.js'));
+  } else {
+    factory((root.pdfjsWebChromeCom = {}), root.pdfjsWebApp,
+      root.pdfjsWebOverlayManager, root.pdfjsWebPreferences,
+      root.pdfjsWebPDFJS);
+  }
+}(this, function (exports, app, overlayManager, preferences, pdfjsLib) {
+//#if CHROME
+  var PDFViewerApplication = app.PDFViewerApplication;
+  var DefaultExernalServices = app.DefaultExernalServices;
+  var OverlayManager = overlayManager.OverlayManager;
+  var Preferences = preferences.Preferences;
+
   var ChromeCom = {};
   /**
    * Creates an event that the extension is listening for and will
@@ -47,11 +65,12 @@ var ChromeCom = (function ChromeComClosure() {
   };
 
   /**
-   * Opens a PDF file with the PDF viewer.
+   * Resolves a PDF file path and attempts to detects length.
    *
    * @param {String} file Absolute URL of PDF file.
+   * @param {Function} callback A callback with resolved URL and file length.
    */
-  ChromeCom.openPDFFile = function ChromeCom_openPDFFile(file) {
+  ChromeCom.resolvePDFFile = function ChromeCom_resolvePDFFile(file, callback) {
     // Expand drive:-URLs to filesystem URLs (Chrome OS)
     file = file.replace(/^drive:/i,
         'filesystem:' + location.origin + '/external/');
@@ -64,10 +83,7 @@ var ChromeCom = (function ChromeComClosure() {
         var streamUrl = response.streamUrl;
         if (streamUrl) {
           console.log('Found data stream for ' + file);
-          PDFViewerApplication.open(streamUrl, 0, undefined, undefined, {
-            length: response.contentLength
-          });
-          PDFViewerApplication.setTitleUsingUrl(file);
+          callback(streamUrl, response.contentLength, file);
           return;
         }
         if (isFTPFile && !response.extensionSupportsFTP) {
@@ -82,7 +98,7 @@ var ChromeCom = (function ChromeComClosure() {
           return;
         }
       }
-      if (/^filesystem:/.test(file) && !PDFJS.disableWorker) {
+      if (/^filesystem:/.test(file) && !pdfjsLib.PDFJS.disableWorker) {
         // The security origin of filesystem:-URLs are not preserved when the
         // URL is passed to a Web worker, (http://crbug.com/362061), so we have
         // to create an intermediate blob:-URL as a work-around.
@@ -91,16 +107,14 @@ var ChromeCom = (function ChromeComClosure() {
         resolveLocalFileSystemURL(file, function onResolvedFSURL(fileEntry) {
           fileEntry.file(function(fileObject) {
             var blobUrl = URL.createObjectURL(fileObject);
-            PDFViewerApplication.open(blobUrl, 0, undefined, undefined, {
-              length: fileObject.size
-            });
+            callback(blobUrl, fileObject.size);
           });
         }, function onFileSystemError(error) {
           // This should not happen. When it happens, just fall back to the
           // usual way of getting the File's data (via the Web worker).
           console.warn('Cannot resolve file ' + file + ', ' + error.name + ' ' +
                        error.message);
-          PDFViewerApplication.open(file, 0);
+          callback(file);
         });
         return;
       }
@@ -109,29 +123,50 @@ var ChromeCom = (function ChromeComClosure() {
         // There is no UI to input a different URL, so this assumption will hold
         // for now.
         setReferer(file, function() {
-          PDFViewerApplication.open(file, 0);
+          callback(file);
         });
         return;
       }
       if (/^file?:/.test(file)) {
-        if (top !== window && !/^file:/i.test(location.ancestorOrigins[0])) {
-          PDFViewerApplication.error('Blocked ' + location.ancestorOrigins[0] +
-              ' from loading ' + file + '. Refused to load a local file in a ' +
-              ' non-local page for security reasons.');
-          return;
-        }
-        isAllowedFileSchemeAccess(function(isAllowedAccess) {
-          if (isAllowedAccess) {
-            PDFViewerApplication.open(file, 0);
-          } else {
-            requestAccessToLocalFile(file);
+        getEmbedderOrigin(function(origin) {
+          // If the origin cannot be determined, let Chrome decide whether to
+          // allow embedding files. Otherwise, only allow local files to be
+          // embedded from local files or Chrome extensions.
+          // Even without this check, the file load in frames is still blocked,
+          // but this may change in the future (https://crbug.com/550151).
+          if (origin && !/^file:|^chrome-extension:/.test(origin)) {
+            PDFViewerApplication.error('Blocked ' + origin + ' from loading ' +
+                file + '. Refused to load a local file in a non-local page ' +
+                'for security reasons.');
+            return;
           }
+          isAllowedFileSchemeAccess(function(isAllowedAccess) {
+            if (isAllowedAccess) {
+              callback(file);
+            } else {
+              requestAccessToLocalFile(file);
+            }
+          });
         });
         return;
       }
-      PDFViewerApplication.open(file, 0);
+      callback(file);
     });
   };
+
+  function getEmbedderOrigin(callback) {
+    var origin = window === top ? location.origin : location.ancestorOrigins[0];
+    if (origin === 'null') {
+      // file:-URLs, data-URLs, sandboxed frames, etc.
+      getParentOrigin(callback);
+    } else {
+      callback(origin);
+    }
+  }
+
+  function getParentOrigin(callback) {
+    ChromeCom.request('getParentOrigin', null, callback);
+  }
 
   function isAllowedFileSchemeAccess(callback) {
     ChromeCom.request('isAllowedFileSchemeAccess', null, callback);
@@ -174,7 +209,9 @@ var ChromeCom = (function ChromeComClosure() {
     }
     if (!chromeFileAccessOverlayPromise) {
       chromeFileAccessOverlayPromise = OverlayManager.register(
-          'chromeFileAccessOverlay', onCloseOverlay, true);
+        'chromeFileAccessOverlay',
+        document.getElementById('chromeFileAccessOverlay'),
+        onCloseOverlay, true);
     }
     chromeFileAccessOverlayPromise.then(function() {
       var iconPath = chrome.runtime.getManifest().icons[48];
@@ -185,7 +222,7 @@ var ChromeCom = (function ChromeComClosure() {
       // because the shown string should match the UI at chrome://extensions.
       // These strings are from chrome/app/resources/generated_resources_*.xtb.
       var i18nFileAccessLabel =
-//#include chrome-i18n-allow-access-to-file-urls.json
+//#include $ROOT/web/chrome-i18n-allow-access-to-file-urls.json
         [chrome.i18n.getUILanguage && chrome.i18n.getUILanguage()];
 
       if (i18nFileAccessLabel) {
@@ -275,7 +312,7 @@ var ChromeCom = (function ChromeComClosure() {
     function onDisconnect() {
       // When the connection fails, ignore the error and call the callback.
       port = null;
-      onCompleted();
+      callback();
     }
     function onCompleted() {
       port.onDisconnect.removeListener(onDisconnect);
@@ -284,5 +321,55 @@ var ChromeCom = (function ChromeComClosure() {
     }
   }
 
-  return ChromeCom;
-})();
+  Preferences._writeToStorage = function (prefObj) {
+    return new Promise(function (resolve) {
+      if (prefObj === DEFAULT_PREFERENCES) {
+        var keysToRemove = Object.keys(DEFAULT_PREFERENCES);
+        // If the storage is reset, remove the keys so that the values from
+        // managed storage are applied again.
+        chrome.storage.local.remove(keysToRemove, function() {
+          resolve();
+        });
+      } else {
+        chrome.storage.local.set(prefObj, function() {
+          resolve();
+        });
+      }
+    });
+  };
+
+  Preferences._readFromStorage = function (prefObj) {
+    return new Promise(function (resolve) {
+      if (chrome.storage.managed) {
+        // Get preferences as set by the system administrator.
+        // See extensions/chromium/preferences_schema.json for more information.
+        // These preferences can be overridden by the user.
+        chrome.storage.managed.get(DEFAULT_PREFERENCES, getPreferences);
+      } else {
+        // Managed storage not supported, e.g. in old Chromium versions.
+        getPreferences(DEFAULT_PREFERENCES);
+      }
+
+      function getPreferences(defaultPrefs) {
+        if (chrome.runtime.lastError) {
+          // Managed storage not supported, e.g. in Opera.
+          defaultPrefs = DEFAULT_PREFERENCES;
+        }
+        chrome.storage.local.get(defaultPrefs, function(readPrefs) {
+          resolve(readPrefs);
+        });
+      }
+    });
+  };
+
+  var ChromeExternalServices = Object.create(DefaultExernalServices);
+  ChromeExternalServices.initPassiveLoading = function (callbacks) {
+    ChromeCom.resolvePDFFile(DEFAULT_URL, function (url, length, originalURL) {
+      callbacks.onOpenWithURL(url, length, originalURL);
+    });
+  };
+  PDFViewerApplication.externalServices = ChromeExternalServices;
+
+  exports.ChromeCom = ChromeCom;
+//#endif
+}));

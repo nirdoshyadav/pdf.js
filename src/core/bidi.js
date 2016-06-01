@@ -1,6 +1,3 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
-/* globals PDFJS */
 /* Copyright 2012 Mozilla Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +15,16 @@
 
 'use strict';
 
-var bidi = PDFJS.bidi = (function bidiClosure() {
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define('pdfjs/core/bidi', ['exports'], factory);
+  } else if (typeof exports !== 'undefined') {
+    factory(exports);
+  } else {
+    factory((root.pdfjsCoreBidi = {}));
+  }
+}(this, function (exports) {
+
   // Character types for symbols from 0000 to 00FF.
   var baseTypes = [
     'BN', 'BN', 'BN', 'BN', 'BN', 'BN', 'BN', 'BN', 'BN', 'S', 'B', 'S', 'WS',
@@ -421,5 +427,5 @@ var bidi = PDFJS.bidi = (function bidiClosure() {
     return createBidiText(chars.join(''), isLTR);
   }
 
-  return bidi;
-})();
+exports.bidi = bidi;
+}));
