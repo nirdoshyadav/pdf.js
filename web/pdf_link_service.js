@@ -17,16 +17,22 @@
 
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
-    define('pdfjs-web/pdf_link_service', ['exports', 'pdfjs-web/ui_utils'],
-      factory);
+    define('pdfjs-web/pdf_link_service', ['exports', 'pdfjs-web/ui_utils',
+      'pdfjs-web/dom_events'], factory);
   } else if (typeof exports !== 'undefined') {
-    factory(exports, require('./ui_utils.js'));
+    factory(exports, require('./ui_utils.js'), require('./dom_events.js'));
   } else {
-    factory((root.pdfjsWebPDFLinkService = {}), root.pdfjsWebUIUtils);
+    factory((root.pdfjsWebPDFLinkService = {}), root.pdfjsWebUIUtils,
+      root.pdfjsWebDOMEvents);
   }
-}(this, function (exports, uiUtils) {
+}(this, function (exports, uiUtils, domEvents) {
 
 var parseQueryString = uiUtils.parseQueryString;
+
+/**
+ * @typedef {Object} PDFLinkServiceOptions
+ * @property {EventBus} eventBus - The application event bus.
+ */
 
 /**
  * Performs navigation functions inside PDF, such as opening specified page,
@@ -37,8 +43,11 @@ var parseQueryString = uiUtils.parseQueryString;
 var PDFLinkService = (function () {
   /**
    * @constructs PDFLinkService
+   * @param {PDFLinkServiceOptions} options
    */
-  function PDFLinkService() {
+  function PDFLinkService(options) {
+    options = options || {};
+    this.eventBus = options.eventBus || domEvents.getGlobalEventBus();
     this.baseUrl = null;
     this.pdfDocument = null;
     this.pdfViewer = null;
@@ -185,6 +194,13 @@ var PDFLinkService = (function () {
     setHash: function PDFLinkService_setHash(hash) {
       if (hash.indexOf('=') >= 0) {
         var params = parseQueryString(hash);
+        if ('search' in params) {
+          this.eventBus.dispatch('findfromurlhash', {
+            source: this,
+            query: params['search'].replace(/"/g, ''),
+            phraseSearch: (params['phrase'] === 'true')
+          });
+        }
         // borrowing syntax from "Parameters for Opening PDF Files"
         if ('nameddest' in params) {
           if (this.pdfHistory) {
@@ -238,11 +254,10 @@ var PDFLinkService = (function () {
           this.page = pageNumber; // simple page
         }
         if ('pagemode' in params) {
-          var event = document.createEvent('CustomEvent');
-          event.initCustomEvent('pagemode', true, true, {
-            mode: params.pagemode,
+          this.eventBus.dispatch('pagemode', {
+            source: this,
+            mode: params.pagemode
           });
-          this.pdfViewer.container.dispatchEvent(event);
         }
       } else if (/^\d+$/.test(hash)) { // page number
         this.page = hash;
@@ -292,11 +307,10 @@ var PDFLinkService = (function () {
           break; // No action according to spec
       }
 
-      var event = document.createEvent('CustomEvent');
-      event.initCustomEvent('namedaction', true, true, {
+      this.eventBus.dispatch('namedaction', {
+        source: this,
         action: action
       });
-      this.pdfViewer.container.dispatchEvent(event);
     },
 
     /**
