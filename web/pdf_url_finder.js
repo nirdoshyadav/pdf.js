@@ -68,7 +68,7 @@
                 window.setTimeout(function () {
                     fc.dirtyMatch = true;
                     fc.extractText();
-                    fc.nextMatch(parseInt(page.textLayer.pageIdx));
+                    fc.nextMatch(pdfjsLib.PDFJS.multiple[0].page-1);
                 }, 250);
                   });
             }else{
