@@ -243,44 +243,75 @@ var PDFFindController = (function PDFFindControllerClosure() {
         this.updateUIResultsCount();
       }
     },
+   createRegEx: function PDFFindController_createRegEx(terms){
+      //check the number of terms
+      var query ;
+      if(terms.length === 1){
+        return terms[0];
+      }else{
+        query = terms.join('|');
+        return '\\b('+query+')\\b';
+      }
+    },
     calcSearchMatch: function PDFFindController_calcSearchMatch(pageIndex) {
       var pageContent = this.normalize(this.pageContents[pageIndex]);
       var matches = [];
       var queryLens= [];
 
       //Nirdosh: regular expression to match full sentence
-      for(var i=0;i<this.state.query.terms.length;i++){
+      //create an OR condition based on query terms parameters
+
         var matchIdx = -queryLen;
-        var query = this.normalize(this.state.query.terms[i]);
+        var query = this.createRegEx(this.state.query.terms);
         var caseSensitive = this.state.caseSensitive;
         var queryLen = query.length;
-        if (queryLen === 0) {
-          continue; // Do nothing: the matches should be wiped out already.
-        }
 
         if (!caseSensitive) {
         pageContent = pageContent.toLowerCase();
         query = query.toLowerCase();
         }
+        if(query.length > 0){
+          //Nirdosh: regular expression to match full sentence
+          var reg_query = '[\"\']?[A-Z][^.?!]+(('+query+'((?![.?!][\'\"]?\\s[\"\']?[A-Z][^.?!]).)+)|(((?![.?!][\'\"]?\\s[\"\']?[A-Z][^.?!]).)+'+query+'))[.?!\'\"]+';
+          var regex=new RegExp(reg_query,'gi');
+          //New regex object to test if contains a matching word or not. using the same regex ignores the matches
+          var regexTest=new RegExp(reg_query,'gi');
+          var match;
+          //check if there are any matches for the regex or not
+          if(!regexTest.test(pageContent)){
+            //if not just highlight the term
+            regex=new RegExp(query,'gi');
+          }
 
-        //Nirdosh: regular expression to match full sentence
-        var regex=new RegExp('[^.]* '+query+'[^.]*\.','gi');
-        //New regex object to test if contains a matching word or not. using the same regex ignores the matches
-        var regexTest=new RegExp('[^.]* '+query+'[^.]*\.','gi');
-        var match;
-        //check if there are any matches for the regex or not
-        if(!regexTest.test(pageContent)){
-          //if not just highlight the term
-          regex=new RegExp(query,'gi');
-        }
-        while ((match = regex.exec(pageContent)) !== null) {
-          if (match.index === regex.lastIndex) {
-            ++regex.lastIndex;
+          while ((match = regex.exec(pageContent)) !== null) {
+            if (match.index === regex.lastIndex) {
+              ++regex.lastIndex;
+              }
+            // check the legnth of the sentence
+            if(match[0].length > 40000000000000000000){
+              //just higlight the word
+              //check with all the words in the query
+              for(var i=0; i< this.state.query.terms.length; i++){
+                var term = this.state.query.terms[i];
+                if(match[0].indexOf(term) >=0){
+                  //check if the last index and current one are not same
+                  // To avoid highlighting both emission and emissions
+                  var newIndex = match.index + match[0].indexOf(term);
+                  if(matches.length > 0 && matches[matches.length-1]!== newIndex){
+                    matches.push(newIndex);
+                    queryLens.push(term.length);
+                  }else if(matches.length == 0){
+                    matches.push(newIndex);
+                    queryLens.push(term.length);
+                  }
+                }
+              }
+            }else{
+              matches.push(match.index);
+              queryLens.push(match[0].length);
             }
-        matches.push(match.index);
-        queryLens.push(match[0].length);
-        }
-      }       
+          }
+        }     
       this.pageMatches[pageIndex] = matches;
       this.queryLens[pageIndex] = queryLens;
       this.updatePage(pageIndex);

@@ -36,6 +36,14 @@
                 //masmedios
                 params = uiUtils.parseQueryString(loc);
             }
+            
+            var fc = page.textLayer.findController;
+            fc.state = {
+                query: '',
+                caseSensitive: false,
+                highlightAll: true,
+                findPrevious: false
+            };
 
             if ((params[paramname] !== undefined) && (typeof pdfjsLib.PDFJS.multiple === 'undefined')) {
                 httpGet(params[paramname],function(data){
@@ -56,16 +64,14 @@
                         document.getElementById('meta-key').className = 'disabled';
                       }
                     }
-              });
-            }
-
-            var fc = page.textLayer.findController;
-            fc.state = {
-                query: '',
-                caseSensitive: false,
-                highlightAll: true,
-                findPrevious: false
-            };
+                //small delay to avoid screen jumps
+                window.setTimeout(function () {
+                    fc.dirtyMatch = true;
+                    fc.extractText();
+                    fc.nextMatch(parseInt(page.textLayer.pageIdx));
+                }, 250);
+                  });
+            }else{
 
             //small delay to avoid screen jumps
             window.setTimeout(function () {
@@ -73,6 +79,7 @@
                 fc.extractText();
                 fc.nextMatch(parseInt(page.textLayer.pageIdx));
             }, 250);
+        } 
 
         } catch (e) {
 
