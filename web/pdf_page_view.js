@@ -19,17 +19,17 @@
   if (typeof define === 'function' && define.amd) {
     define('pdfjs-web/pdf_page_view', ['exports',
       'pdfjs-web/ui_utils', 'pdfjs-web/pdf_rendering_queue',
-      'pdfjs-web/dom_events', 'pdfjs-web/pdfjs'], factory);
+      'pdfjs-web/dom_events', 'pdfjs-web/pdfjs', 'pdfjs-web/pdf_url_finder'], factory);
   } else if (typeof exports !== 'undefined') {
     factory(exports, require('./ui_utils.js'),
       require('./pdf_rendering_queue.js'), require('./dom_events.js'),
-      require('./pdfjs.js'));
+      require('./pdfjs.js'), require('./pdf_url_finder.js'));
   } else {
     factory((root.pdfjsWebPDFPageView = {}), root.pdfjsWebUIUtils,
       root.pdfjsWebPDFRenderingQueue, root.pdfjsWebDOMEvents,
-      root.pdfjsWebPDFJS);
+      root.pdfjsWebPDFJS, root.pdfjsWebPDFURLFinder);
   }
-}(this, function (exports, uiUtils, pdfRenderingQueue, domEvents, pdfjsLib) {
+}(this, function (exports, uiUtils, pdfRenderingQueue, domEvents, pdfjsLib, pdfjsURLFinder) {
 
 var CSS_UNITS = uiUtils.CSS_UNITS;
 var DEFAULT_SCALE = uiUtils.DEFAULT_SCALE;
@@ -507,6 +507,7 @@ var PDFPageView = (function PDFPageViewClosure() {
               function textContentResolved(textContent) {
                 textLayer.setTextContent(textContent);
                 textLayer.render(TEXT_LAYER_RENDER_DELAY);
+                var match = new pdfjsURLFinder.PDFURLFinder(self);
               }
             );
           }

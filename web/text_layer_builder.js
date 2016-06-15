@@ -143,7 +143,7 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
         }
 
         var match = {
-          begin: {
+        begin: {
             divIdx: i,
             offset: matchIdx - iIndex
           }
@@ -172,7 +172,59 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
 
       return ret;
     },
+    convertSearchMatches: function TextLayerBuilder_convertMatches(matches,
+      queryLens) {
+      var i = 0;
+      var iIndex = 0;
+      var bidiTexts = this.textContent.items;
+      var end = bidiTexts.length - 1;
+      var queryLen = (this.findController === null ?
+                      0 : this.findController.state.query.length);
+      var ret = [];
 
+      for (var m = 0, len = matches.length; m < len; m++) {
+        i=0;
+        iIndex=0;
+        // Calculate the start position.
+        var matchIdx = matches[m];
+
+        // Loop over the divIdxs.
+        while (i !== end && matchIdx >= (iIndex + bidiTexts[i].str.length)) {
+          iIndex += bidiTexts[i].str.length;
+          i++;
+        }
+
+        if (i === bidiTexts.length) {
+          console.error('Could not find a matching mapping');
+        }
+
+        var match = {
+          begin: {
+            divIdx: i,
+            offset: matchIdx - iIndex
+          }
+        };
+
+        // Calculate the end position.
+        matchIdx += queryLens[m];
+
+        // Somewhat the same array as above, but use > instead of >= to get
+        // the end position right.
+        while (i !== end && matchIdx > (iIndex + bidiTexts[i].str.length)) {
+          iIndex += bidiTexts[i].str.length;
+          i++;
+        }
+
+        match.end = {
+          divIdx: i,
+          offset: matchIdx - iIndex
+        };
+        ret.push(match);
+      }
+
+      return ret;
+    },
+    
     renderMatches: function TextLayerBuilder_renderMatches(matches) {
       // Early exit if there is nothing to render.
       if (matches.length === 0) {
@@ -266,6 +318,136 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
       }
     },
 
+    renderSearchMatches: function TextLayerBuilder_renderSearchMatches(matches) {
+      // Early exit if there is nothing to render.
+      if (matches.length === 0) {
+        return;
+      }
+
+      var bidiTexts = this.textContent.items;
+      var textDivs = this.textDivs;
+      var prevEnd = null;
+      var pageIdx = this.pageIdx;
+      var isSelectedPage = (this.findController === null ?
+        false : (pageIdx === this.findController.selected.pageIdx));
+      var selectedMatchIdx = (this.findController === null ?
+                              -1 : this.findController.selected.matchIdx);
+      var highlightAll = (this.findController === null ?
+                          false : this.findController.state.highlightAll);
+      var infinity = {
+        divIdx: -1,
+        offset: undefined
+      };
+
+      function beginText(begin, className) {
+        // console.log('Begin Text');
+        // console.log(begin);
+        var divIdx = begin.divIdx;
+        var div = textDivs[divIdx];
+        var endIndex=begin.offset;
+        var spans = div.getElementsByTagName('span');
+        var content=bidiTexts[divIdx].str;
+        if((typeof spans!== 'undefined') && spans.length>0){
+          for(var i=0;i<spans.length;i++){
+            var container = spans[i].parentNode;
+            container.removeChild(spans[i]);
+          }
+          textDivs[divIdx].textContent = bidiTexts[divIdx].str;
+          textDivs[divIdx].style.backgroundColor='red';
+          return;
+        }else{
+          textDivs[divIdx].textContent = '';
+          appendTextToDiv(divIdx, 0, endIndex,className);
+      }
+      }
+
+      function appendTextToDiv(divIdx, fromOffset, toOffset, className) {
+        var div = textDivs[divIdx];
+        //if div already has element
+        var content = bidiTexts[divIdx].str.substring(fromOffset, toOffset);
+        var node = document.createTextNode(content);
+        if (className) {
+          var spans=div.getElementsByTagName('span');
+          if((typeof spans!== 'undefined') && spans.length>0){
+            for(var i=0;i<spans.length;i++){
+              var container = spans[i].parentNode;
+              container.removeChild(spans[i]);
+            }
+            textDivs[divIdx].textContent = bidiTexts[divIdx].str;
+            textDivs[divIdx].style.backgroundColor='red';
+            return;
+          }else{
+            var span = document.createElement('span');
+            span.style.backgroundColor='red';
+            span.className = 'highlight';
+            span.appendChild(node);
+            div.appendChild(span);
+            return;
+          }
+        }
+        div.appendChild(node);
+      }
+
+      var i0 = selectedMatchIdx, i1 = i0 + 1;
+      if (highlightAll) {
+        i0 = 0;
+        i1 = matches.length;
+      } else if (!isSelectedPage) {
+        // Not highlighting all and this isn't the selected page, so do nothing.
+        return;
+      }
+
+      for (var i = i0; i < i1; i++) {
+        var match = matches[i];
+        var begin = match.begin;
+        var end = match.end;
+        var isSelected = (isSelectedPage && i === selectedMatchIdx);
+        var highlightSuffix = (isSelected ? 'selected' : '');
+
+        if (typeof PDFJS.multiple === 'undefined') {
+            if (isSelected && !this.isViewerInPresentationMode) {
+                scrollIntoView(textDivs[begin.divIdx],
+                               {
+                                   top: FIND_SCROLL_OFFSET_TOP,
+                                   left: FIND_SCROLL_OFFSET_LEFT
+                               });
+            }
+        } else {
+            highlightSuffix = '';
+        }
+
+        // Match inside new div.
+        if (!prevEnd || begin.divIdx !== prevEnd.divIdx) {
+          // If there was a previous div, then add the text at the end.
+          if (prevEnd !== null) {
+            appendTextToDiv(prevEnd.divIdx, prevEnd.offset, infinity.offset);
+          }
+          // Clear the divs and set the content until the starting point.
+          beginText(begin,'begin');
+        } else {
+          // console.log('Inside no previous div');
+          appendTextToDiv(prevEnd.divIdx, prevEnd.offset, begin.offset);
+        }
+
+        if (begin.divIdx === end.divIdx) {
+          appendTextToDiv(begin.divIdx, begin.offset, end.offset,
+                          'highlight' + highlightSuffix);
+        } else {
+          appendTextToDiv(begin.divIdx, begin.offset, bidiTexts[begin.divIdx].str.length,
+                          'highlight begin' + highlightSuffix);
+          for (var n0 = begin.divIdx + 1, n1 = end.divIdx; n0 < n1; n0++) {
+            textDivs[n0].style.backgroundColor='red';
+          }
+          beginText(end,'end');
+        }
+        prevEnd = end;
+      }
+
+      if (prevEnd) {
+        appendTextToDiv(prevEnd.divIdx, prevEnd.offset, infinity.offset);
+      }
+    },
+
     updateMatches: function TextLayerBuilder_updateMatches() {
       // Only show matches when all rendering is done.
       if (!this.renderingDone) {
@@ -281,11 +463,14 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
       // Clear all current matches.
       for (var i = 0, len = matches.length; i < len; i++) {
         var match = matches[i];
-        var begin = Math.max(clearedUntilDivIdx, match.begin.divIdx);
-        for (var n = begin, end = match.end.divIdx; n <= end; n++) {
-          var div = textDivs[n];
-          div.textContent = bidiTexts[n].str;
-          div.className = '';
+        //no need to clear as we can have multiple terms on the same page
+        if(typeof PDFJS.multiple === 'undefined'){
+          var begin = Math.max(clearedUntilDivIdx, match.begin.divIdx);
+          for (var n = begin, end = match.end.divIdx; n <= end; n++) {
+            var div = textDivs[n];
+            div.textContent = bidiTexts[n].str;
+            div.className = '';
+          }
         }
         clearedUntilDivIdx = match.end.divIdx + 1;
       }
@@ -296,15 +481,24 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
 
       // Convert the matches on the page controller into the match format
       // used for the textLayer.
-      var pageMatches, pageMatchesLength;
-      if (this.findController !== null) {
-        pageMatches = this.findController.pageMatches[this.pageIdx] || null;
-        pageMatchesLength = (this.findController.pageMatchesLength) ?
-          this.findController.pageMatchesLength[this.pageIdx] || null : null;
-      }
 
-      this.matches = this.convertMatches(pageMatches, pageMatchesLength);
-      this.renderMatches(this.matches);
+      if(typeof PDFJS.multiple !== 'undefined'){
+        this.matches = this.convertSearchMatches(
+          this.findController === null ?
+          [] : (this.findController.pageMatches[this.pageIdx] || []),
+          this.findController === null ?
+          [] : (this.findController.queryLens[this.pageIdx] || []));
+        this.renderMatches(this.matches);
+      }else{
+        var pageMatches, pageMatchesLength;
+        if (this.findController !== null) {
+          pageMatches = this.findController.pageMatches[this.pageIdx] || null;
+          pageMatchesLength = (this.findController.pageMatchesLength) ?
+            this.findController.pageMatchesLength[this.pageIdx] || null : null;
+        }
+        this.matches = this.convertMatches(pageMatches, pageMatchesLength);
+        this.renderMatches(this.matches);
+      }
     },
 
     /**
@@ -347,7 +541,7 @@ var TextLayerBuilder = (function TextLayerBuilderClosure() {
 //#endif
         end.classList.remove('active');
       });
-    },
+    }
   };
   return TextLayerBuilder;
 })();

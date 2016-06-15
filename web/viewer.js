@@ -17,6 +17,9 @@
 'use strict';
 
 var DEFAULT_URL = 'compressed.tracemonkey-pldi-09.pdf';
+var METAINDEX = 0;
+var KEYPAGEMETAINDEX = 0;
+var METAKEY = false;
 
 //#if PRODUCTION
 //var pdfjsWebLibs = {

@@ -100,7 +100,9 @@ var COMMON_WEB_FILES =
       ['web/images',
        'web/debugger.js'],
     COMMON_WEB_FILES_PREPROCESS =
-      ['web/viewer.html'],
+      ['web/viewer.js',
+       'web/viewer.html',
+       'web/viewerMeta.html'],
     COMMON_FIREFOX_FILES_PREPROCESS =
       [FIREFOX_CONTENT_DIR + 'PdfStreamConverter.jsm',
        FIREFOX_CONTENT_DIR + 'PdfjsContentUtils.jsm',

@@ -20,11 +20,11 @@
     define('pdfjs-web/pdf_find_controller', ['exports', 'pdfjs-web/ui_utils'],
       factory);
   } else if (typeof exports !== 'undefined') {
-    factory(exports, require('./ui_utils.js'));
+    factory(exports, require('./ui_utils.js'), require('./pdfjs.js'));
   } else {
-    factory((root.pdfjsWebPDFFindController = {}), root.pdfjsWebUIUtils);
+    factory((root.pdfjsWebPDFFindController = {}), root.pdfjsWebUIUtils,  root.pdfjsWebPDFJS);
   }
-}(this, function (exports, uiUtils) {
+}(this, function (exports, uiUtils, pdfjsLib) {
 
 var scrollIntoView = uiUtils.scrollIntoView;
 
@@ -214,12 +214,12 @@ var PDFFindController = (function PDFFindControllerClosure() {
       var caseSensitive = this.state.caseSensitive;
       var phraseSearch = this.state.phraseSearch;
       var queryLen = query.length;
-
+      
       if (queryLen === 0) {
         // Do nothing: the matches should be wiped out already.
         return;
       }
-
+  
       if (!caseSensitive) {
         pageContent = pageContent.toLowerCase();
         query = query.toLowerCase();
@@ -241,6 +241,52 @@ var PDFFindController = (function PDFFindControllerClosure() {
       if (this.pageMatches[pageIndex].length > 0) {
         this.matchCount += this.pageMatches[pageIndex].length;
         this.updateUIResultsCount();
+      }
+    },
+    calcSearchMatch: function PDFFindController_calcSearchMatch(pageIndex) {
+      var pageContent = this.normalize(this.pageContents[pageIndex]);
+      var matches = [];
+      var queryLens= [];
+
+      //Nirdosh: regular expression to match full sentence
+      for(var i=0;i<this.state.query.terms.length;i++){
+        var matchIdx = -queryLen;
+        var query = this.normalize(this.state.query.terms[i]);
+        var caseSensitive = this.state.caseSensitive;
+        var queryLen = query.length;
+        if (queryLen === 0) {
+          continue; // Do nothing: the matches should be wiped out already.
+        }
+
+        if (!caseSensitive) {
+        pageContent = pageContent.toLowerCase();
+        query = query.toLowerCase();
+        }
+
+        //Nirdosh: regular expression to match full sentence
+        var regex=new RegExp('[^.]* '+query+'[^.]*\.','gi');
+        //New regex object to test if contains a matching word or not. using the same regex ignores the matches
+        var regexTest=new RegExp('[^.]* '+query+'[^.]*\.','gi');
+        var match;
+        //check if there are any matches for the regex or not
+        if(!regexTest.test(pageContent)){
+          //if not just highlight the term
+          regex=new RegExp(query,'gi');
+        }
+        while ((match = regex.exec(pageContent)) !== null) {
+          if (match.index === regex.lastIndex) {
+            ++regex.lastIndex;
+            }
+        matches.push(match.index);
+        queryLens.push(match[0].length);
+        }
+      }       
+      this.pageMatches[pageIndex] = matches;
+      this.queryLens[pageIndex] = queryLens;
+      this.updatePage(pageIndex);
+      if (this.resumePageIdx === pageIndex) {
+        this.resumePageIdx = null;
+        this.nextPageMatch();
       }
     },
 
@@ -315,9 +361,22 @@ var PDFFindController = (function PDFFindControllerClosure() {
       if (page.textLayer) {
         page.textLayer.updateMatches();
       }
+      //scroll match into view
+      if (typeof pdfjsLib.PDFJS.multiple === 'undefined') {
+          try {
+              var d = document.getElementsByClassName('highlight');
+              if (d.length > 0) {
+                  var vc = document.getElementById('viewerContainer');
+                  if (vc.scrollTop < 40) {
+                      scrollIntoView(d[0].parentNode);
+                  }
+              }
+          } catch (e) {
+          }
+      }
     },
 
-    nextMatch: function PDFFindController_nextMatch() {
+    nextMatch: function PDFFindController_nextMatch(page) {
       var previous = this.state.findPrevious;
       var currentPageIndex = this.pdfViewer.currentPageNumber - 1;
       var numPages = this.pdfViewer.pagesCount;
@@ -335,9 +394,15 @@ var PDFFindController = (function PDFFindControllerClosure() {
         this.pageMatches = [];
         this.matchCount = 0;
         this.pageMatchesLength = null;
+        this.queryLens = [];
         var self = this;
 
-        for (var i = 0; i < numPages; i++) {
+        var qwy = '';
+        if(page === undefined){
+            page=currentPageIndex;
+        }
+        var i=page;
+        //for (var i = 0; i < numPages; i++) {
           // Wipe out any previous highlighted matches.
           this.updatePage(i);
 
@@ -346,10 +411,22 @@ var PDFFindController = (function PDFFindControllerClosure() {
             this.pendingFindMatches[i] = true;
             this.extractTextPromises[i].then(function(pageIdx) {
               delete self.pendingFindMatches[pageIdx];
-              self.calcFindMatch(pageIdx);
+              if (typeof pdfjsLib.PDFJS.multiple === 'undefined') {
+                for(var i=0;i<numPages;i++){
+                  self.calcFindMatch(i);
+                }
+              } else { 
+                    for(var j=0;j<pdfjsLib.PDFJS.multiple.length;j++){
+                     //get the data for the current page
+                     if(pdfjsLib.PDFJS.multiple[j].page === pageIdx+1){
+                      self.state.query = pdfjsLib.PDFJS.multiple[j];
+                      self.calcSearchMatch(pageIdx);
+                      }
+                    }
+              }
             });
           }
-        }
+        //}
       }
 
       // If there's no query there's no point in searching.

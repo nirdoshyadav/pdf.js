@@ -71,9 +71,9 @@ var SecondaryToolbar = (function SecondaryToolbarClosure() {
     this.buttons = [
       { element: options.presentationModeButton, eventName: 'presentationmode',
         close: true },
-      { element: options.openFileButton, eventName: 'openfile', close: true },
-      { element: options.printButton, eventName: 'print', close: true },
-      { element: options.downloadButton, eventName: 'download', close: true },
+      // { element: options.openFileButton, eventName: 'openfile', close: true },
+      // { element: options.printButton, eventName: 'print', close: true },
+      // { element: options.downloadButton, eventName: 'download', close: true },
       { element: options.viewBookmarkButton, eventName: null, close: true },
       { element: options.firstPageButton, eventName: 'firstpage', close: true },
       { element: options.lastPageButton, eventName: 'lastpage', close: true },

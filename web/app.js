@@ -28,7 +28,7 @@
       'pdfjs-web/pdf_rendering_queue', 'pdfjs-web/pdf_link_service',
       'pdfjs-web/pdf_outline_viewer', 'pdfjs-web/overlay_manager',
       'pdfjs-web/pdf_attachment_viewer', 'pdfjs-web/pdf_find_controller',
-      'pdfjs-web/pdf_find_bar', 'pdfjs-web/dom_events', 'pdfjs-web/pdfjs'],
+      'pdfjs-web/pdf_find_bar', 'pdfjs-web/dom_events', 'pdfjs-web/pdfjs', 'pdfjs-web/pdf_url_finder'],
       factory);
   } else if (typeof exports !== 'undefined') {
     factory(exports, require('./ui_utils.js'), require('./download_manager.js'),
@@ -41,7 +41,7 @@
       require('./pdf_link_service.js'), require('./pdf_outline_viewer.js'),
       require('./overlay_manager.js'), require('./pdf_attachment_viewer.js'),
       require('./pdf_find_controller.js'), require('./pdf_find_bar.js'),
-      require('./dom_events.js'), require('./pdfjs.js'));
+      require('./dom_events.js'), require('./pdfjs.js'), require('./pdf_url_finder.js'));
   } else {
     factory((root.pdfjsWebApp = {}), root.pdfjsWebUIUtils,
       root.pdfjsWebDownloadManager, root.pdfjsWebPDFHistory,
@@ -53,7 +53,7 @@
       root.pdfjsWebPDFRenderingQueue, root.pdfjsWebPDFLinkService,
       root.pdfjsWebPDFOutlineViewer, root.pdfjsWebOverlayManager,
       root.pdfjsWebPDFAttachmentViewer, root.pdfjsWebPDFFindController,
-      root.pdfjsWebPDFFindBar, root.pdfjsWebDOMEvents, root.pdfjsWebPDFJS);
+      root.pdfjsWebPDFFindBar, root.pdfjsWebDOMEvents, root.pdfjsWebPDFJS, root.pdfjsWebPDFURLFinder);
   }
 }(this, function (exports, uiUtilsLib, downloadManagerLib, pdfHistoryLib,
                   preferencesLib, pdfSidebarLib, viewHistoryLib,
@@ -62,7 +62,7 @@
                   pdfViewerLib, pdfRenderingQueueLib, pdfLinkServiceLib,
                   pdfOutlineViewerLib, overlayManagerLib,
                   pdfAttachmentViewerLib, pdfFindControllerLib, pdfFindBarLib,
-                  domEventsLib, pdfjsLib) {
+                  domEventsLib, pdfjsLib, pdfjsURLFinderLib) {
 
 var UNKNOWN_SCALE = uiUtilsLib.UNKNOWN_SCALE;
 var DEFAULT_SCALE_VALUE = uiUtilsLib.DEFAULT_SCALE_VALUE;
@@ -93,6 +93,7 @@ var PDFAttachmentViewer = pdfAttachmentViewerLib.PDFAttachmentViewer;
 var PDFFindController = pdfFindControllerLib.PDFFindController;
 var PDFFindBar = pdfFindBarLib.PDFFindBar;
 var getGlobalEventBus = domEventsLib.getGlobalEventBus;
+var PDFURLFinder = pdfjsURLFinderLib.PDFURLFinder;
 
 var DEFAULT_SCALE_DELTA = 1.1;
 var MIN_SCALE = 0.25;
@@ -105,12 +106,11 @@ var DISABLE_AUTO_FETCH_LOADING_BAR_TIMEOUT = 5000;
 function configure(PDFJS) {
   PDFJS.imageResourcesPath = './images/';
 //#if (FIREFOX || MOZCENTRAL || GENERIC || CHROME)
-//PDFJS.workerSrc = '../build/pdf.worker.js';
+  PDFJS.workerSrc = './lib/pdf.worker.js';
 //#endif
 //#if !PRODUCTION
-  PDFJS.cMapUrl = '../external/bcmaps/';
-  PDFJS.cMapPacked = true;
-  PDFJS.workerSrc = '../src/worker_loader.js';
+  PDFJS.cMapUrl = '';
+  PDFJS.cMapPacked = false;
 //#else
 //PDFJS.cMapUrl = '../web/cmaps/';
 //PDFJS.cMapPacked = true;
@@ -1271,9 +1271,9 @@ function validateFileURL(file) {
     // Removing of the following line will not guarantee that the viewer will
     // start accepting URLs from foreign origin -- CORS headers on the remote
     // server must be properly configured.
-    if (fileOrigin !== viewerOrigin) {
-      throw new Error('file origin does not match viewer\'s');
-    }
+    // if (fileOrigin !== viewerOrigin) {
+    //   throw new Error('file origin does not match viewer\'s');
+    // }
   } catch (e) {
     var message = e && e.message;
     var loadingErrorMessage = mozL10n.get('loading_error', null,
@@ -1427,10 +1427,10 @@ function webViewerInitialized() {
   }
 //#endif
 
-  if (!PDFViewerApplication.supportsPrinting) {
-    appConfig.toolbar.print.classList.add('hidden');
-    appConfig.secondaryToolbar.printButton.classList.add('hidden');
-  }
+  // if (!PDFViewerApplication.supportsPrinting) {
+  //   appConfig.toolbar.print.classList.add('hidden');
+  //   appConfig.secondaryToolbar.printButton.classList.add('hidden');
+  // }
 
   if (!PDFViewerApplication.supportsFullscreen) {
     appConfig.toolbar.presentationModeButton.classList.add('hidden');
@@ -1465,6 +1465,104 @@ function webViewerInitialized() {
     function() {
       PDFViewerApplication.page++;
     });
+  
+  if(document.getElementById('meta-key')){
+    document.getElementById('meta-key').addEventListener('click',
+      function() {
+        //only enable if we have some key pages
+        if(PDFJS.key_page_data.length > 0){
+          if(document.getElementById('meta-key').className === ''){
+            document.getElementById('meta-key').className = 'disabled';
+            METAKEY = false;
+            //move to the first highlight page
+            METAINDEX =0;
+            PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
+            //make the previous disabled as this is first highlight
+            document.getElementById('meta-prev').className = 'disabled';
+            if(PDFJS.multiple.length > 1){
+              document.getElementById('meta-next').className = '';
+            }
+          } else {
+             document.getElementById('meta-key').className = '';
+             METAKEY = true;
+             KEYPAGEMETAINDEX =0;
+             PDFViewerApplication.page = PDFJS.key_page_data[KEYPAGEMETAINDEX].page;
+             //make the previous disabled as this is first highlight
+             document.getElementById('meta-prev').className = 'disabled';
+             if(PDFJS.key_page_data.length > 1){
+              document.getElementById('meta-next').className = '';
+            }
+          }
+        }
+      });
+  }
+
+  if(document.getElementById('meta-prev')){
+    document.getElementById('meta-prev').addEventListener('click',
+      function() {
+        if(METAKEY) {
+          if(KEYPAGEMETAINDEX > 0){
+            KEYPAGEMETAINDEX --;
+            PDFViewerApplication.page = PDFJS.key_page_data[KEYPAGEMETAINDEX].page;
+          }
+          //disable the button once last highlight is shown
+          if(KEYPAGEMETAINDEX == 0){
+             document.getElementById('meta-prev').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(KEYPAGEMETAINDEX < PDFJS.multiple.length -1){
+             document.getElementById('meta-next').className = '';
+          }
+        } else {
+          if(METAINDEX > 0){
+            METAINDEX--;
+            PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
+          }
+          //disable the button once last highlight is shown
+          if(METAINDEX == 0){
+             document.getElementById('meta-prev').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(METAINDEX < PDFJS.multiple.length -1){
+             document.getElementById('meta-next').className = '';
+          }
+        }
+    });
+  }
+
+  if(document.getElementById('meta-next')){
+    document.getElementById('meta-next').addEventListener('click',
+      function() {
+        if(METAKEY) {
+          if(KEYPAGEMETAINDEX < PDFJS.key_page_data.length -1){
+            KEYPAGEMETAINDEX++;
+            PDFViewerApplication.page = PDFJS.key_page_data[KEYPAGEMETAINDEX].page;
+          }
+          //disable the button once last highlight is shown
+          if(KEYPAGEMETAINDEX >= PDFJS.key_page_data.length - 1){
+             document.getElementById('meta-next').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(KEYPAGEMETAINDEX > 0){
+             document.getElementById('meta-prev').className = '';
+          }
+        } else {
+          if(METAINDEX < PDFJS.multiple.length -1){
+            METAINDEX++;
+            PDFViewerApplication.page = PDFJS.multiple[METAINDEX].page;
+          }
+          //disable the button once last highlight is shown
+          if(METAINDEX >= PDFJS.multiple.length - 1){
+             document.getElementById('meta-next').className = 'disabled';
+          }
+          //enable the previous highlights if user isn't on first one
+          if(METAINDEX > 0){
+             document.getElementById('meta-prev').className = '';
+          }
+        }
+
+      });
+  }
 
   appConfig.toolbar.zoomIn.addEventListener('click',
     function() {
@@ -1502,17 +1600,17 @@ function webViewerInitialized() {
 
   });
 
-  appConfig.toolbar.openFile.addEventListener('click', function (e) {
-    PDFViewerApplication.eventBus.dispatch('openfile');
-  });
+  // appConfig.toolbar.openFile.addEventListener('click', function (e) {
+  //   PDFViewerApplication.eventBus.dispatch('openfile');
+  // });
 
-  appConfig.toolbar.print.addEventListener('click', function (e) {
-    PDFViewerApplication.eventBus.dispatch('print');
-  });
+  // appConfig.toolbar.print.addEventListener('click', function (e) {
+  //   PDFViewerApplication.eventBus.dispatch('print');
+  // });
 
-  appConfig.toolbar.download.addEventListener('click', function (e) {
-    PDFViewerApplication.eventBus.dispatch('download');
-  });
+  // appConfig.toolbar.download.addEventListener('click', function (e) {
+  //   PDFViewerApplication.eventBus.dispatch('download');
+  // });
 
   Promise.all(waitForBeforeOpening).then(function () {
     webViewerOpenFileViaURL(file);

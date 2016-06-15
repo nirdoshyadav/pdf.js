@@ -1,17 +1,23 @@
 ﻿<!DOCTYPE html>
 <!--
 Copyright 2012 Mozilla Foundation
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
 Adobe CMap resources are covered by their own copyright but the same license:
+
     Copyright 1990-2015 Adobe Systems Incorporated.
+
 See https://github.com/adobe-type-tools/cmap-resources
 -->
 <html dir="ltr" mozdisallowselectionprint moznomarginboxes>
@@ -20,9 +26,6 @@ See https://github.com/adobe-type-tools/cmap-resources
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <!--#if GENERIC || CHROME-->
     <meta name="google" content="notranslate">
-<!--#endif-->
-<!--#if GENERIC-->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <!--#endif-->
     <title>PDF.js viewer</title>
 
@@ -33,9 +36,9 @@ See https://github.com/adobe-type-tools/cmap-resources
 <!--#include viewer-snippet-chrome-extension.html-->
 <!--#endif-->
 
-    <link rel="stylesheet" href="viewer.css">
+    <link rel="stylesheet" href="viewer.css"/>
 <!--#if !PRODUCTION-->
-    <link rel="resource" type="application/l10n" href="locale/locale.properties">
+    <link rel="resource" type="application/l10n" href="locale/locale.properties"/>
 <!--#endif-->
 
 <!--#if !(MOZCENTRAL || CHROME || MINIFIED)-->
@@ -47,7 +50,14 @@ See https://github.com/adobe-type-tools/cmap-resources
 <!--#endif-->
 
 <!--#if !PRODUCTION-->
-    <script src="../node_modules/requirejs/require.js"></script>
+    <script src="../src/shared/util.js"></script>
+    <script src="../src/display/api.js"></script>
+    <script src="../src/display/metadata.js"></script>
+    <script src="../src/display/canvas.js"></script>
+    <script src="../src/display/webgl.js"></script>
+    <script src="../src/display/pattern_helper.js"></script>
+    <script src="../src/display/font_loader.js"></script>
+    <script>PDFJS.workerSrc = '../src/worker_loader.js';</script>
 <!--#endif-->
 
 <!--#if (GENERIC && !MINIFIED) -->
@@ -55,7 +65,31 @@ See https://github.com/adobe-type-tools/cmap-resources
 <!--#endif-->
 
 <!--#if !PRODUCTION-->
+    <script src="ui_utils.js"></script>
     <script src="default_preferences.js"></script>
+    <script src="preferences.js"></script>
+    <script src="download_manager.js"></script>
+    <script src="view_history.js"></script>
+    <script src="pdf_link_service.js"></script>
+    <script src="pdf_rendering_queue.js"></script>
+    <script src="pdf_page_view.js"></script>
+    <script src="text_layer_builder.js"></script>
+    <script src="annotations_layer_builder.js"></script>
+    <script src="pdf_viewer.js"></script>
+    <script src="pdf_thumbnail_view.js"></script>
+    <script src="pdf_thumbnail_viewer.js"></script>
+    <script src="pdf_outline_view.js"></script>
+    <script src="pdf_attachment_view.js"></script>
+    <script src="pdf_find_bar.js"></script>
+    <script src="pdf_find_controller.js"></script>
+    <script src="pdf_history.js"></script>
+    <script src="secondary_toolbar.js"></script>
+    <script src="pdf_presentation_mode.js"></script>
+    <script src="grab_to_pan.js"></script>
+    <script src="hand_tool.js"></script>
+    <script src="overlay_manager.js"></script>
+    <script src="password_prompt.js"></script>
+    <script src="pdf_document_properties.js"></script>
 <!--#endif-->
 
 <!--#if !MINIFIED -->
@@ -110,7 +144,6 @@ See https://github.com/adobe-type-tools/cmap-resources
           <label for="findHighlightAll" class="toolbarLabel" data-l10n-id="find_highlight">Highlight all</label>
           <input type="checkbox" id="findMatchCase" class="toolbarField" tabindex="95">
           <label for="findMatchCase" class="toolbarLabel" data-l10n-id="find_match_case_label">Match case</label>
-          <span id="findResultsCount" class="toolbarLabel hidden"></span>
           <span id="findMsg" class="toolbarLabel"></span>
         </div>  <!-- findbar -->
 
@@ -120,17 +153,6 @@ See https://github.com/adobe-type-tools/cmap-resources
               <span data-l10n-id="presentation_mode_label">Presentation Mode</span>
             </button>
 
-            <!-- <button id="secondaryOpenFile" class="secondaryToolbarButton openFile visibleLargeView" title="Open File" tabindex="52" data-l10n-id="open_file">
-              <span data-l10n-id="open_file_label">Open</span>
-            </button>
-
-            <button id="secondaryPrint" class="secondaryToolbarButton print visibleMediumView" title="Print" tabindex="53" data-l10n-id="print">
-              <span data-l10n-id="print_label">Print</span>
-            </button>
-
-            <button id="secondaryDownload" class="secondaryToolbarButton download visibleMediumView" title="Download" tabindex="54" data-l10n-id="download">
-              <span data-l10n-id="download_label">Download</span>
-            </button> -->
 
             <a href="#" id="secondaryViewBookmark" class="secondaryToolbarButton bookmark visibleSmallView" title="Current view (copy or open in new window)" tabindex="55" data-l10n-id="bookmark">
               <span data-l10n-id="bookmark_label">Current View</span>
@@ -175,11 +197,12 @@ See https://github.com/adobe-type-tools/cmap-resources
                 <button id="sidebarToggle" class="toolbarButton" title="Toggle Sidebar" tabindex="11" data-l10n-id="toggle_sidebar">
                   <span data-l10n-id="toggle_sidebar_label">Toggle Sidebar</span>
                 </button>
-                <div class="toolbarButtonSpacer"></div>
-                <button id="viewFind" class="toolbarButton group hiddenSmallView" title="Find in Document" tabindex="12" data-l10n-id="findbar">
+                <!--here-->
+                <div class="toolbarButtonSpacer hidden"></div>
+                <button id="viewFind" class="toolbarButton hidden group hiddenSmallView" title="Find in Document" tabindex="12" data-l10n-id="findbar">
                    <span data-l10n-id="findbar_label">Find</span>
                 </button>
-                <div class="splitToolbarButton">
+                <div class="splitToolbarButton hidden">
                   <button class="toolbarButton pageUp" title="Previous Page" id="previous" tabindex="13" data-l10n-id="previous">
                     <span data-l10n-id="previous_label">Previous</span>
                   </button>
@@ -188,39 +211,31 @@ See https://github.com/adobe-type-tools/cmap-resources
                     <span data-l10n-id="next_label">Next</span>
                   </button>
                 </div>
-                <label id="pageNumberLabel" class="toolbarLabel" for="pageNumber" data-l10n-id="page_label">Page: </label>
-                <input type="number" id="pageNumber" class="toolbarField pageNumber" value="1" size="4" min="1" tabindex="15">
-                <span id="numPages" class="toolbarLabel"></span>
+                <label id="pageNumberLabel" class="toolbarLabel hidden" for="pageNumber" data-l10n-id="page_label">Page: </label>
+                <input type="number" id="pageNumber" class="toolbarField hidden pageNumber" value="1" size="4" min="1" tabindex="15">
+                <span id="numPages" class="toolbarLabel hidden"></span>
               </div>
               <div id="toolbarViewerRight">
-                <button id="presentationMode" class="toolbarButton presentationMode hiddenLargeView" title="Switch to Presentation Mode" tabindex="31" data-l10n-id="presentation_mode">
+                  <!--here-->
+                  <button id="presentationMode" class="toolbarButton hidden presentationMode hiddenLargeView" title="Switch to Presentation Mode" tabindex="31" data-l10n-id="presentation_mode">
                   <span data-l10n-id="presentation_mode_label">Presentation Mode</span>
                 </button>
-
-                <!-- <button id="openFile" class="toolbarButton openFile hiddenLargeView" title="Open File" tabindex="32" data-l10n-id="open_file">
-                  <span data-l10n-id="open_file_label">Open</span>
-                </button>
-
-                <button id="print" class="toolbarButton print hiddenMediumView" title="Print" tabindex="33" data-l10n-id="print">
-                  <span data-l10n-id="print_label">Print</span>
-                </button>
-
-                <button id="download" class="toolbarButton download hiddenMediumView" title="Download" tabindex="34" data-l10n-id="download">
-                  <span data-l10n-id="download_label">Download</span>
-                </button> -->
-                <a href="#" id="viewBookmark" class="toolbarButton bookmark hiddenSmallView" title="Current view (copy or open in new window)" tabindex="35" data-l10n-id="bookmark">
+                <a href="#" id="viewBookmark" class="toolbarButton hidden bookmark hiddenSmallView" title="Current view (copy or open in new window)" tabindex="35" data-l10n-id="bookmark">
                   <span data-l10n-id="bookmark_label">Current View</span>
                 </a>
 
-                <div class="verticalToolbarSeparator hiddenSmallView"></div>
+                <div class="verticalToolbarSeparator hidden hiddenSmallView"></div>
 
-                <button id="secondaryToolbarToggle" class="toolbarButton" title="Tools" tabindex="36" data-l10n-id="tools">
+                <button id="secondaryToolbarToggle" class="toolbarButton hidden" title="Tools" tabindex="36" data-l10n-id="tools">
                   <span data-l10n-id="tools_label">Tools</span>
                 </button>
+
+                  <div id="meta-key" class="hide"><img width="20px"  src="images/hightw.png" /></div>
               </div>
               <div class="outerCenter">
                 <div class="innerCenter" id="toolbarViewerMiddle">
-                  <div class="splitToolbarButton">
+                <!-- here -->
+                <div class="splitToolbarButton hidden">
                     <button id="zoomOut" class="toolbarButton zoomOut" title="Zoom Out" tabindex="21" data-l10n-id="zoom_out">
                       <span data-l10n-id="zoom_out_label">Zoom Out</span>
                     </button>
@@ -229,7 +244,7 @@ See https://github.com/adobe-type-tools/cmap-resources
                       <span data-l10n-id="zoom_in_label">Zoom In</span>
                      </button>
                   </div>
-                  <span id="scaleSelectContainer" class="dropdownToolbarButton">
+                  <span id="scaleSelectContainer" class="dropdownToolbarButton hidden">
                      <select id="scaleSelect" title="Zoom" tabindex="23" data-l10n-id="zoom">
                       <option id="pageAutoOption" title="" value="auto" selected="selected" data-l10n-id="page_scale_auto">Automatic Zoom</option>
                       <option id="pageActualOption" title="" value="page-actual" data-l10n-id="page_scale_actual">Actual Size</option>
@@ -246,6 +261,8 @@ See https://github.com/adobe-type-tools/cmap-resources
                       <option title="" value="4" data-l10n-id="page_scale_percent" data-l10n-args='{ "scale": 400 }'>400%</option>
                     </select>
                   </span>
+                <div id="meta-prev">PREVIOUS MENTION<img width="20px"  src="images/prev_btn.png" /></div>
+                <div id="meta-next"><img width="20px" src="images/next_btn.png" />NEXT MENTION</div>
                 </div>
               </div>
             </div>
@@ -300,8 +317,7 @@ See https://github.com/adobe-type-tools/cmap-resources
               <p id="passwordText" data-l10n-id="password_label">Enter the password to open this PDF file:</p>
             </div>
             <div class="row">
-              <!-- The type="password" attribute is set via script, to prevent warnings in Firefox for all http:// documents. -->
-              <input id="password" class="toolbarField">
+              <input type="password" id="password" class="toolbarField" />
             </div>
             <div class="buttonRow">
               <button id="passwordCancel" class="overlayButton"><span data-l10n-id="password_cancel">Cancel</span></button>
