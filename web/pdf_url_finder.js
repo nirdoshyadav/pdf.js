@@ -44,43 +44,43 @@
                 highlightAll: true,
                 findPrevious: false
             };
-
-            if ((params[paramname] !== undefined) && (typeof pdfjsLib.PDFJS.multiple === 'undefined')) {
+             if ((params[paramname] !== undefined) && (typeof pdfjsLib.PDFJS.multiple === 'undefined')) {
                 httpGet(params[paramname],function(data){
+                  //due to asynchronys call there might be additional call before getting the data
+                  if(typeof pdfjsLib.PDFJS.multiple === 'undefined'){
                     pdfjsLib.PDFJS.multiple=data;
                     pdfjsLib.PDFJS.key_page_data=[];
                     //load the first highloighted page
                     if(typeof pdfjsLib.PDFJS.multiple !== 'undefined' && pdfjsLib.PDFJS.multiple.length >0){
-                      PDFViewerApplication.page = pdfjsLib.PDFJS.multiple[0].page;
                       //make the previous disabled as this is first highlight
                        document.getElementById('meta-prev').className = 'disabled';
                       //check if it has any key pages, if not disable the key_page button
                       for(var i=0; i<pdfjsLib.PDFJS.multiple.length; i++){
-                         if(PDFJS.multiple[i].key_page === true){
-                            PDFJS.key_page_data.push(pdfjsLib.PDFJS.multiple[i]);
+                         if(pdfjsLib.PDFJS.multiple[i].key_page === true){
+                            pdfjsLib.PDFJS.key_page_data.push(pdfjsLib.PDFJS.multiple[i]);
                         }
                       }
                       if(pdfjsLib.PDFJS.key_page_data.length > 0){
                         document.getElementById('meta-key').className = 'disabled';
                       }
-                    }
-                //small delay to avoid screen jumps
-                window.setTimeout(function () {
-                    fc.dirtyMatch = true;
-                    fc.extractText();
-                    fc.nextMatch(pdfjsLib.PDFJS.multiple[0].page-1);
-                }, 250);
-                  });
-            }else{
-
+                      window.setTimeout(function () {
+                      fc.dirtyMatch = true;
+                      fc.extractText();
+                      PDFViewerApplication.page = pdfjsLib.PDFJS.multiple[0].page;
+                      fc.nextMatch(parseInt(pdfjsLib.PDFJS.multiple[0].page)-1);
+                      }, 250);
+                  }
+                }
+              });
+            }
+            else if(params[paramname] !== undefined && (typeof pdfjsLib.PDFJS.multiple !== 'undefined')){
             //small delay to avoid screen jumps
             window.setTimeout(function () {
                 fc.dirtyMatch = true;
                 fc.extractText();
                 fc.nextMatch(parseInt(page.textLayer.pageIdx));
             }, 250);
-        } 
-
+          }
         } catch (e) {
 
         }
